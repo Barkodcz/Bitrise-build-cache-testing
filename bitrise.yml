@@ -209,6 +209,9 @@ step_bundles:
         - content: |-
             #!/usr/bin/env bash
             set -euo pipefail
+            # PyYAML isn't preinstalled on the stack (verified 2026-11-26, see verified-facts.md:
+            # "ModuleNotFoundError: No module named 'yaml'" on a real report_node run).
+            pip install --quiet --disable-pip-version-check pyyaml
             "$BITRISE_SOURCE_DIR"/tools/report/render.py \
               --metrics-dir "$SHOWCASE_METRICS_DIR" --catalog "$BITRISE_SOURCE_DIR/scenarios/catalog.yml" \
               --out "$BITRISE_SOURCE_DIR/.showcase/report"
@@ -218,6 +221,7 @@ step_bundles:
         - content: |-
             #!/usr/bin/env bash
             set -euo pipefail
+            pip install --quiet --disable-pip-version-check pyyaml
             FAIL_FLAG="false"
             if [ "$fail_on_assertion" = "true" ]; then FAIL_FLAG="true"; fi
             "$BITRISE_SOURCE_DIR"/tools/report/assertions.py \
