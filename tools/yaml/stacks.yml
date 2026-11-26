@@ -1,0 +1,16 @@
+# Logical stack/machine names (as used in scenarios/catalog.yml `stack_id` / `machine`) resolved to
+# real Bitrise stack IDs + machine_type_ids in this single place (spec §7.2).
+#
+# machine_type_id is intentionally left unset for every entry below: it was not possible to verify
+# machine type IDs for this workspace via the CLI in this pass (docs/reference/verified-facts.md).
+# Leaving it unset means Bitrise uses the app/workspace default machine for that workflow.
+stacks:
+  linux-default:
+    stack: ubuntu-noble-24.04-bitrise-2025-android
+    machine_type_id: null
+  xcode-26:
+    stack: "[VERIFY-NOT-YET-RESOLVED-xcode-26]"
+    machine_type_id: null
+  xcode-16-legacy:
+    stack: osx-xcode-16.4.x
+    machine_type_id: null

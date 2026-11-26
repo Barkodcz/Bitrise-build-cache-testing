@@ -1,0 +1,60 @@
+# Gradle step bundles (spec §7.3, §6.1). `activate-build-cache-for-gradle@3.18.1` inputs verified
+# 2026-11-26 (docs/reference/verified-facts.md): verbose, collect_metrics, validation_level, push.
+# There is no `enabled` input on this step — scenarios that model "no activation" (AND-B01) simply
+# omit this bundle from the generated workflow instead; scenarios that model wrong placement
+# (AND-B02) are implemented by the generator emitting this bundle's step AFTER gradle_build instead
+# of before (spec §7.4's "explicit step order over DRYness" decision).
+step_bundles:
+  gradle_build_cache:
+    inputs:
+    - push: "true"
+    - verbose: "false"
+    - validation_level: warning
+    steps:
+    - activate-build-cache-for-gradle@3.18.1:
+        inputs:
+        - push: $push
+        - verbose: $verbose
+        - validation_level: $validation_level
+        - collect_metrics: "true"
+
+  # Key-based cache of the Gradle wrapper + downloaded module cache (dependency jars), per spec
+  # §3.3/§3.9. Deliberately separate from gradle_build_cache: this caches *downloads*, Build Cache
+  # caches *compiled task outputs* — conflating the two is the AND-B01 anti-pattern.
+  gradle_deps_cache_restore:
+    inputs:
+    - key: 'gradle-deps-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "**/*.gradle*" "gradle.properties" "gradle/libs.versions.toml" }}'
+    steps:
+    - restore-cache@3.0.2:
+        inputs:
+        - key: $key
+        - verbose: "false"
+
+  gradle_deps_cache_save:
+    inputs:
+    - key: 'gradle-deps-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "**/*.gradle*" "gradle.properties" "gradle/libs.versions.toml" }}'
+    - paths: |-
+        ~/.gradle/caches/modules-2
+        ~/.gradle/wrapper
+    steps:
+    - save-cache@1.5.3:
+        inputs:
+        - key: $key
+        - paths: $paths
+        - is_key_unique: "true"
+        - verbose: "false"
+
+  # Runs the showcase Android project's build via tools/run-gradle.sh, which wires in the
+  # showcase-metrics.init.gradle.kts init script (spec §8.2) and the namespace Gradle property.
+  gradle_build:
+    inputs:
+    - tasks: ":app:assembleDebug :core:model:testDebugUnitTest"
+    - options: "--console=plain"
+    steps:
+    - script@1.2.1:
+        title: "Gradle build (instrumented with showcase metrics init script)"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-gradle.sh "$tasks" "$options"

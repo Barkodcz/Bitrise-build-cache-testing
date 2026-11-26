@@ -1,0 +1,18 @@
+# Root of the modular Bitrise config (Enterprise-plan "include:" feature, spec §4.3/§4.4/§14-Q11).
+# This file is the source of truth for ORDER; tools/yaml/flatten.py reads the `include:` list below
+# to produce the flat bitrise.yml that works on every plan. Non-Enterprise users/forks should use
+# bitrise.yml directly — it is kept in sync by `make generate` and committed to the repo.
+#
+# File/nesting limits at time of writing: <= 49 files, nesting <= 10 (spec §4.3).
+format_version: "17"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+include:
+- path: .bitrise/00-app.yml
+- path: .bitrise/bundles/common.yml
+- path: .bitrise/bundles/gradle.yml
+- path: .bitrise/bundles/key-based.yml
+- path: .bitrise/workflows/android.yml
+- path: .bitrise/workflows/node.yml
+- path: .bitrise/pipelines/android.yml
+- path: .bitrise/pipelines/node.yml

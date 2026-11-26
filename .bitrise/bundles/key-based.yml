@@ -1,0 +1,63 @@
+# Generic key-based cache bundles (spec §3.9, §7.3) used by every key-based-caching scenario.
+# Each bundle pairs the official cache step with a `keybased_record.sh` call so the scenario
+# workflow itself only ever references `bundle::*` (spec §7.1's "raw step in a scenario = a smell").
+# `node_install` is the npm-specific wrapper used by the Node scenarios implemented so far
+# (scenarios/catalog.yml NODE-*). Ruby/Go/Rust/Python/Maven wrappers are not implemented yet
+# (status: planned) — add `ruby_install` / `go_build` / `rust_build` / `python_install` /
+# `maven_build` here, following the same shape, when those stacks move to `status: implemented`.
+step_bundles:
+  kb_restore:
+    inputs:
+    - key: 'kb-{{ getenv "SHOWCASE_NS" }}-REPLACE_ME'
+    - name: "cache"
+    steps:
+    - restore-cache@3.0.2:
+        inputs:
+        - key: $key
+        - verbose: "false"
+    - script@1.2.1:
+        title: "Record key-based cache restore outcome"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/keybased_record.sh record-restore "$name" '$key'
+
+  kb_save:
+    inputs:
+    - key: 'kb-{{ getenv "SHOWCASE_NS" }}-REPLACE_ME'
+    - paths: "REPLACE_ME"
+    - is_key_unique: "true"
+    - name: "cache"
+    steps:
+    - save-cache@1.5.3:
+        inputs:
+        - key: $key
+        - paths: $paths
+        - is_key_unique: $is_key_unique
+        - verbose: "false"
+    - script@1.2.1:
+        title: "Record key-based cache save outcome"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/keybased_record.sh record-save "$name" '$key' '$paths'
+
+  # `npm ci` against projects/node. The generator fills `restore_key`/`save_key` per-scenario
+  # (NODE-B01 deliberately makes them differ) rather than this bundle hardcoding one template,
+  # so the defect stays visible in the generated workflow YAML (spec §7.1).
+  node_install:
+    inputs:
+    - working_dir: "$BITRISE_SOURCE_DIR/projects/node"
+    steps:
+    - script@1.2.1:
+        title: "npm ci"
+        inputs:
+        - working_dir: $working_dir
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh start dependency_install
+            npm ci --prefer-offline
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh stop dependency_install

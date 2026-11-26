@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "scenario_id": "AND-G01",
+  "stack": "android",
+  "phase": "seed",
+  "verdict_expected": null,
+  "run": {
+    "pipeline_id": "fixture",
+    "build_slug": "fixture",
+    "workflow": "and-g01__1_seed",
+    "stack_id": "ubuntu-noble-24.04-bitrise-2025-android",
+    "machine_type": null,
+    "datacenter": "ams",
+    "isolation": "isolated",
+    "namespace": "fixture-AND-G01",
+    "change_kind": "leaf",
+    "started_at": "2026-11-26T10:00:00Z"
+  },
+  "durations_s": {
+    "total_workflow": 320,
+    "build_step": 300,
+    "cache_restore": null,
+    "cache_save": null,
+    "dependency_install": null
+  },
+  "remote_cache": {
+    "tool": "gradle",
+    "hits": 5,
+    "misses": 95,
+    "hit_rate": 0.05,
+    "bytes_downloaded": null,
+    "bytes_uploaded": null,
+    "download_upload_ratio": null,
+    "proxy_total": null,
+    "engaged": true
+  },
+  "gradle": {
+    "tasks_total": 100,
+    "executed": 95,
+    "from_cache": 5,
+    "up_to_date": 0,
+    "skipped": 0,
+    "no_source": 0,
+    "from_cache_share": 0.05,
+    "top_executed_tasks": []
+  },
+  "xcode": null,
+  "bazel": null,
+  "key_based": [],
+  "test_distribution": null,
+  "notes": [],
+  "raw_logs": []
+}

@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install python deps
+        run: pip install pyyaml ruff
+
+      - name: Install Bitrise CLI
+        run: |
+          curl -L -o /tmp/bitrise https://github.com/bitrise-io/bitrise/releases/latest/download/bitrise-$(uname -s)-$(uname -m)
+          chmod +x /tmp/bitrise
+          sudo mv /tmp/bitrise /usr/local/bin/bitrise
+          bitrise --version
+
+      - name: Regenerate and diff (catches stale generated files)
+        run: |
+          make generate
+          git diff --exit-code -- bitrise.yml .bitrise/workflows .bitrise/pipelines
+
+      - name: Validate bitrise.yml (offline)
+        run: bitrise yml validate -c bitrise.yml --offline
+
+      - name: Lint
+        run: make lint
+
+      - name: Report renders from fixtures
+        run: make report-fixtures
+
+      - name: Unit tests
+        run: make test

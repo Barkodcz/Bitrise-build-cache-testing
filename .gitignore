@@ -1,0 +1,23 @@
+# Showcase runtime artefacts (metrics, report output) — never commit a real run's output.
+.showcase/
+
+# Node
+projects/node/node_modules/
+npm-debug.log*
+
+# Gradle
+projects/android/.gradle/
+projects/android/**/build/
+projects/android/local.properties
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

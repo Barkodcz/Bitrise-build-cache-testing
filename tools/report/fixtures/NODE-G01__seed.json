@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "scenario_id": "NODE-G01",
+  "stack": "node",
+  "phase": "seed",
+  "verdict_expected": null,
+  "run": {
+    "pipeline_id": "fixture",
+    "build_slug": "fixture",
+    "workflow": "node-g01__1_seed",
+    "stack_id": "ubuntu-noble-24.04-bitrise-2025-android",
+    "machine_type": null,
+    "datacenter": "ams",
+    "isolation": "isolated",
+    "namespace": "fixture-NODE-G01",
+    "change_kind": "leaf",
+    "started_at": "2026-11-26T10:00:00Z"
+  },
+  "durations_s": {
+    "total_workflow": 50,
+    "build_step": null,
+    "cache_restore": null,
+    "cache_save": null,
+    "dependency_install": 40
+  },
+  "remote_cache": null,
+  "gradle": null,
+  "xcode": null,
+  "bazel": null,
+  "key_based": [
+    {
+      "name": "npm",
+      "key": "npm-...",
+      "restore_hit": "false",
+      "archive_bytes": 50000000,
+      "restore_s": 1.0,
+      "save_s": 5.0,
+      "saved": true
+    }
+  ],
+  "test_distribution": null,
+  "notes": [],
+  "raw_logs": []
+}

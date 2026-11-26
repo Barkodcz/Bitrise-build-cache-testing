@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bitrise-build-cache-showcase/metrics-schema.json",
+  "title": "Showcase scenario metrics",
+  "description": "One instance of this schema per workflow run: metrics/<SCENARIO>__<phase>.json (spec §8.1).",
+  "type": "object",
+  "required": ["schema_version", "scenario_id", "stack", "phase", "run", "durations_s"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "scenario_id": { "type": "string" },
+    "stack": { "type": "string" },
+    "phase": { "type": "string", "enum": ["seed", "measure"] },
+    "verdict_expected": { "type": ["string", "null"], "enum": ["good", "bad", "regression-guard", null] },
+    "run": {
+      "type": "object",
+      "properties": {
+        "pipeline_id": { "type": ["string", "null"] },
+        "build_slug": { "type": ["string", "null"] },
+        "workflow": { "type": ["string", "null"] },
+        "stack_id": { "type": ["string", "null"] },
+        "machine_type": { "type": ["string", "null"] },
+        "datacenter": { "type": ["string", "null"] },
+        "isolation": { "type": ["string", "null"] },
+        "namespace": { "type": ["string", "null"] },
+        "change_kind": { "type": ["string", "null"] },
+        "started_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "durations_s": {
+      "type": "object",
+      "properties": {
+        "total_workflow": { "type": ["number", "null"] },
+        "build_step": { "type": ["number", "null"] },
+        "cache_restore": { "type": ["number", "null"] },
+        "cache_save": { "type": ["number", "null"] },
+        "dependency_install": { "type": ["number", "null"] }
+      }
+    },
+    "remote_cache": {
+      "type": ["object", "null"],
+      "properties": {
+        "tool": { "type": ["string", "null"], "enum": ["gradle", "xcode", "bazel", "ccache", "none", null] },
+        "hits": { "type": ["integer", "null"] },
+        "misses": { "type": ["integer", "null"] },
+        "hit_rate": { "type": ["number", "null"] },
+        "bytes_downloaded": { "type": ["integer", "null"] },
+        "bytes_uploaded": { "type": ["integer", "null"] },
+        "download_upload_ratio": { "type": ["number", "null"] },
+        "proxy_total": { "type": ["integer", "null"] },
+        "engaged": { "type": ["boolean", "null"] }
+      }
+    },
+    "gradle": {
+      "type": ["object", "null"],
+      "properties": {
+        "tasks_total": { "type": ["integer", "null"] },
+        "executed": { "type": ["integer", "null"] },
+        "from_cache": { "type": ["integer", "null"] },
+        "up_to_date": { "type": ["integer", "null"] },
+        "skipped": { "type": ["integer", "null"] },
+        "no_source": { "type": ["integer", "null"] },
+        "from_cache_share": { "type": ["number", "null"] },
+        "top_executed_tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "duration_s": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "xcode": {
+      "type": ["object", "null"],
+      "properties": {
+        "proxy_hits": { "type": ["integer", "null"] },
+        "proxy_total": { "type": ["integer", "null"] },
+        "uploaded_blobs": { "type": ["integer", "null"] },
+        "set_session_seen": { "type": ["boolean", "null"] },
+        "xcelerate_logs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "bazel": {
+      "type": ["object", "null"],
+      "properties": {
+        "processes": { "type": ["integer", "null"] },
+        "remote_cache_hit": { "type": ["integer", "null"] },
+        "local": { "type": ["integer", "null"] },
+        "remote": { "type": ["integer", "null"] }
+      }
+    },
+    "key_based": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "key": { "type": "string" },
+          "restore_hit": { "type": "string", "enum": ["exact", "partial", "false"] },
+          "archive_bytes": { "type": ["integer", "null"] },
+          "restore_s": { "type": ["number", "null"] },
+          "save_s": { "type": ["number", "null"] },
+          "saved": { "type": "boolean" }
+        }
+      }
+    },
+    "test_distribution": { "type": ["object", "null"] },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "raw_logs": { "type": "array", "items": { "type": "string" } }
+  }
+}

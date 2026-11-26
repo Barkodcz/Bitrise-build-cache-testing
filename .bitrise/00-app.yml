@@ -1,0 +1,21 @@
+# App-level section (spec §7.2). Stack ID and step versions below are pinned to values
+# verified against the live workspace/steplib on 2026-11-26 — see docs/reference/verified-facts.md.
+# machine_type_id is deliberately omitted (not verified for this workspace, see verified-facts.md);
+# omitting it means the workflow uses the app/workspace default machine.
+format_version: "17"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
+
+meta:
+  bitrise.io:
+    stack: ubuntu-noble-24.04-bitrise-2025-android
+
+app:
+  envs:
+  - SHOWCASE_ISOLATION: isolated        # isolated | steady   (spec §4.2)
+  - SHOWCASE_CHANGE_KIND: leaf          # none | leaf | core | deps (spec §4.1)
+  - SHOWCASE_PROJECT_SIZE: M            # S | M | L (generators)
+  - SHOWCASE_METRICS_DIR: $BITRISE_SOURCE_DIR/.showcase/metrics
+  - SHOWCASE_ENABLE_GRADLE_TD: "false"  # optional module (spec §11.1) — not implemented yet
+  - SHOWCASE_ENABLE_BAZEL_RBE: "false"  # optional module (spec §11.2) — not implemented yet
+  - SHOWCASE_FAIL_ON_ASSERTION: "true"  # report workflow fails if expectations aren't met

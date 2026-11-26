@@ -1,0 +1,99 @@
+# Hand-written step bundles shared by every stack (spec §7.3). Used by every scenario workflow
+# regardless of stack. Bundle inputs are the only parametrisation channel into a bundle; workflow-level
+# `envs:` (set by the generator per scenario) carry scenario metadata consumed by tools/*.
+step_bundles:
+  # git-clone right after a workflow starts. `clone_dir` lets relocation-style scenarios
+  # (e.g. a future AND-B04 non-relocatable-input scenario) clone into a different directory
+  # per phase to prove a cache key is/isn't path-relocatable.
+  setup_checkout:
+    inputs:
+    - clone_dir: $BITRISE_SOURCE_DIR
+    steps:
+    - git-clone@8.5.3:
+        inputs:
+        - clone_into_dir: $clone_dir
+
+  # Exports SHOWCASE_* envs, computes the cache namespace (tools/namespace.sh, spec §4.2), and
+  # starts the total-workflow timer. `scenario_id`/`phase`/`stack` are always set by the generator;
+  # they are NOT bundle inputs to a nested step here because envman needs real env names to export -
+  # the generator instead emits workflow-level `envs:` for these three and this bundle only computes
+  # the namespace + timer, which do need to run as steps.
+  setup_showcase:
+    steps:
+    - script@1.2.1:
+        title: "Showcase setup (namespace + timers)"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            source "$BITRISE_SOURCE_DIR/tools/namespace.sh"
+            "$BITRISE_SOURCE_DIR/tools/metrics/timing.sh" start total_workflow
+
+  # Measure-phase only: applies the deterministic simulated commit (spec §4.1).
+  simulate_change:
+    inputs:
+    - kind: $SHOWCASE_CHANGE_KIND
+    steps:
+    - script@1.2.1:
+        title: "Simulate change ($kind)"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR/tools/simulate-change.sh" "$SHOWCASE_STACK" "$kind"
+
+  # Stops the total timer and merges every metrics fragment written during the workflow into
+  # metrics/<scenario>__<phase>.json (spec §8).
+  collect_metrics:
+    steps:
+    - script@1.2.1:
+        title: "Collect + merge showcase metrics"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR/tools/metrics/timing.sh" stop total_workflow
+            "$BITRISE_SOURCE_DIR"/tools/metrics/merge_fragments.py \
+              --scenario "$SHOWCASE_SCENARIO_ID" --phase "$SHOWCASE_PHASE" \
+              --out "$SHOWCASE_METRICS_DIR"
+
+  # Deploys this scenario's metrics JSON (+ raw build log) as a pipeline intermediate file so the
+  # report workflow can pull every scenario's output regardless of which node produced it.
+  deploy_metrics:
+    steps:
+    - deploy-to-bitrise-io@2.26.2:
+        inputs:
+        - pipeline_intermediate_files: "$SHOWCASE_METRICS_DIR:SHOWCASE_METRICS_DIR_$SHOWCASE_SCENARIO_ID"
+
+  # Used only by `_report_<stack>` workflows: pulls every scenario's intermediate files, renders the
+  # HTML/Markdown report, runs assertions, and deploys the results (spec §9.1).
+  report:
+    inputs:
+    - fail_on_assertion: $SHOWCASE_FAIL_ON_ASSERTION
+    steps:
+    - pull-intermediate-files@1.3.7:
+        inputs:
+        - artifact_sources: ".*"
+    - script@1.2.1:
+        title: "Render showcase report"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/report/render.py \
+              --metrics-dir "$SHOWCASE_METRICS_DIR" --catalog "$BITRISE_SOURCE_DIR/scenarios/catalog.yml" \
+              --out "$BITRISE_SOURCE_DIR/.showcase/report"
+    - script@1.2.1:
+        title: "Evaluate assertions"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            FAIL_FLAG="false"
+            if [ "$fail_on_assertion" = "true" ]; then FAIL_FLAG="true"; fi
+            "$BITRISE_SOURCE_DIR"/tools/report/assertions.py \
+              --metrics-dir "$SHOWCASE_METRICS_DIR" --catalog "$BITRISE_SOURCE_DIR/scenarios/catalog.yml" \
+              --out "$BITRISE_SOURCE_DIR/.showcase/report" --fail-on-assertion "$FAIL_FLAG"
+    - deploy-to-bitrise-io@2.26.2:
+        inputs:
+        - deploy_path: "$BITRISE_SOURCE_DIR/.showcase/report"
