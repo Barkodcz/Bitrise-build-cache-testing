@@ -85,6 +85,26 @@ step_bundles:
         inputs:
         - artifact_sources: ".*"
     - script@1.2.1:
+        title: "Assemble metrics dir from downloaded artifacts"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            # pull-intermediate-files has no "download into this dir" input: it downloads each
+            # scenario's <SCENARIO>__<phase>.json into its OWN randomly-named /tmp/_artifact_pull*
+            # directory and only exposes the path via a per-scenario output env var (verified
+            # 2026-11-26: assertions.py reported "no measure metrics found" for every scenario on a
+            # real report_node run, even though render.py's own output proved the files existed).
+            # Glob for them directly instead of relying on env var names (which contain literal
+            # hyphens, e.g. $SHOWCASE_METRICS_DIR_NODE-B02, so they aren't even valid bash identifiers).
+            mkdir -p "$SHOWCASE_METRICS_DIR"
+            shopt -s nullglob
+            for d in /tmp/_artifact_pull*/; do
+              cp "$d"*.json "$SHOWCASE_METRICS_DIR"/ 2>/dev/null || true
+            done
+            echo "Assembled metrics dir:"
+            ls -la "$SHOWCASE_METRICS_DIR"
+    - script@1.2.1:
         title: "Render showcase report"
         inputs:
         - content: |-
@@ -95,7 +115,7 @@ step_bundles:
             pip install --quiet --disable-pip-version-check pyyaml
             "$BITRISE_SOURCE_DIR"/tools/report/render.py \
               --metrics-dir "$SHOWCASE_METRICS_DIR" --catalog "$BITRISE_SOURCE_DIR/scenarios/catalog.yml" \
-              --out "$BITRISE_SOURCE_DIR/.showcase/report"
+              --out "$BITRISE_SOURCE_DIR/.showcase/report" --stack "$SHOWCASE_STACK"
     - script@1.2.1:
         title: "Evaluate assertions"
         inputs:
@@ -107,7 +127,8 @@ step_bundles:
             if [ "$fail_on_assertion" = "true" ]; then FAIL_FLAG="true"; fi
             "$BITRISE_SOURCE_DIR"/tools/report/assertions.py \
               --metrics-dir "$SHOWCASE_METRICS_DIR" --catalog "$BITRISE_SOURCE_DIR/scenarios/catalog.yml" \
-              --out "$BITRISE_SOURCE_DIR/.showcase/report" --fail-on-assertion "$FAIL_FLAG"
+              --out "$BITRISE_SOURCE_DIR/.showcase/report" --fail-on-assertion "$FAIL_FLAG" \
+              --stack "$SHOWCASE_STACK"
     - deploy-to-bitrise-io@2.26.2:
         inputs:
         - deploy_path: "$BITRISE_SOURCE_DIR/.showcase/report"

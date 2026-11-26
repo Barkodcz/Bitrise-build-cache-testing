@@ -165,12 +165,17 @@ def main():
     ap.add_argument("--metrics-dir", required=True)
     ap.add_argument("--catalog", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--stack", default=None,
+                     help="Only include scenarios for this stack (e.g. a single-stack "
+                          "report_<stack> workflow). Omit to include every implemented scenario.")
     args = ap.parse_args()
 
     with open(args.catalog) as f:
         catalog = yaml.safe_load(f)
 
     implemented = [s for s in catalog["scenarios"] if s.get("status") == "implemented"]
+    if args.stack:
+        implemented = [s for s in implemented if s["stack"] == args.stack]
     rows = [row_for_scenario(scn, args.metrics_dir) for scn in implemented]
 
     os.makedirs(args.out, exist_ok=True)
