@@ -513,6 +513,9 @@ step_bundles:
             for f in "$BITRISE_DEPLOY_DIR"/xcelerate-*.log; do
               [ -e "$f" ] && xcelerate_log="$f"
             done
+            echo "--- [diagnostic] tail of xcelerate log: $xcelerate_log ---"
+            [ -n "$xcelerate_log" ] && tail -20 "$xcelerate_log"
+            echo "--- [diagnostic] end ---"
             "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
               --raw-log "$xcelerate_log" \
               --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"
