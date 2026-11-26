@@ -274,4 +274,5 @@ workflows:
     envs:
     - SHOWCASE_STACK: node
     steps:
+    - bundle::setup_checkout: {}
     - bundle::report: {}

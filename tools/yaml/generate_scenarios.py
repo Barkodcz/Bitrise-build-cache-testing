@@ -201,7 +201,11 @@ def main():
             "title": f"Report · showcase-{stack}",
             "summary": "Renders the HTML/Markdown report and runs assertions for this stack.",
             "envs": [{"SHOWCASE_STACK": stack}],
-            "steps": [{"bundle::report": {}}],
+            # bundle::setup_checkout is required here too: tools/report/render.py and
+            # tools/report/assertions.py live in this repo, and this workflow otherwise never clones
+            # it (verified 2026-11-26: without this, the report scripts fail with "No such file or
+            # directory" because $BITRISE_SOURCE_DIR is empty — see docs/reference/verified-facts.md).
+            "steps": [{"bundle::setup_checkout": {}}, {"bundle::report": {}}],
         }
         pipeline_workflows[report_wf_name] = {
             "depends_on": measure_ids,

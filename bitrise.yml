@@ -851,6 +851,7 @@ workflows:
     envs:
     - SHOWCASE_STACK: android
     steps:
+    - bundle::setup_checkout: {}
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-android
@@ -858,6 +859,7 @@ workflows:
     envs:
     - SHOWCASE_STACK: node
     steps:
+    - bundle::setup_checkout: {}
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-node
