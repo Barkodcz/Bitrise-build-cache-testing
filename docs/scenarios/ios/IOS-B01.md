@@ -29,8 +29,17 @@ steps:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `remote_cache.engaged == false`; measure duration ≈ seed duration (no speed-up).
+- Log evidence (real, build 28): `xcode_version: 16.4`, activation step still prints
+  `✅ Bitrise Build Cache for Xcode activated` (no error, no version warning), then
+  `All active build tools in baseline benchmark mode (xcode=baseline (cache disabled)): cache
+  disabled, analytics only`.
+- Metrics: `remote_cache.engaged == false`, `found_any_signal == false`.
+- **Caveat found on this first real run**: this workspace currently lacks the Build Cache for
+  Xcode entitlement entirely (`docs/reference/verified-facts.md`), so `IOS-G01` shows the identical
+  `engaged == false` signature right now — this scenario's *intended* distinguishing factor (old
+  Xcode version) can't yet be isolated from that workspace-level gate. The assertion still passes
+  (for the right surface value), but doesn't yet prove the Xcode-version-specific symptom on its
+  own; re-verify once the workspace entitlement is granted.
 
 ## Why it happens
 Build Cache for Xcode relies on Xcode 26's own compilation-caching infrastructure

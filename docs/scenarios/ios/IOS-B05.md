@@ -25,9 +25,17 @@ steps:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `remote_cache.engaged == false` for this build — same signature as `IOS-B01`, but caused
-  by step ordering, not Xcode version.
+- Log evidence (real, build 28): `xcode-build-for-simulator` runs and succeeds *before* the
+  `activate-build-cache-for-xcode` step's `✅ Bitrise Build Cache for Xcode activated` /
+  `baseline benchmark mode` lines appear in the log — confirming the step order defect is real and
+  visible, not just inferred from the YAML.
+- Metrics: `remote_cache.engaged == false` for this build — same signature as `IOS-B01`.
+- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
+  (`docs/reference/verified-facts.md`), so `IOS-G01` currently shows the same `engaged == false`
+  signature too — this scenario's step-order evidence (activation log lines appearing after the
+  build) is real and independently confirms the ordering defect regardless of that gate, but the
+  engaged/false metric alone doesn't yet distinguish "wrong order" from "not entitled." Re-verify
+  once the workspace is enabled.
 
 ## Why it happens
 `activate-build-cache-for-xcode` configures the environment (an alias wrapping subsequent

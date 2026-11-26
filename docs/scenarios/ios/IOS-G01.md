@@ -35,11 +35,17 @@ committed). No code signing is required — `xcode-build-for-simulator`'s own de
 already sets `CODE_SIGNING_ALLOWED=NO`.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `remote_cache.engaged` — whether the official `activate-build-cache-for-xcode` step's
-  alias-based interception actually reaches the official `xcode-build-for-simulator` step (a
-  compiled toolkit, not an interactive shell) is itself an open verification question for this
-  scenario's first real run — see `docs/reference/verified-facts.md`.
+- Log evidence (real, build 28): activation runs cleanly —
+  `✅ Bitrise Build Cache for Xcode activated` — then `xcode-build-for-simulator` succeeds
+  (`Archive Succeeded`). But right after activation, the log also shows:
+  `Bitrise Build Cache auto-activation skipped: workspace "0f453e706a6f6bb6" is not enabled for it`
+  and `All active build tools in baseline benchmark mode (xcode=baseline (cache disabled)): cache
+  disabled, analytics only`.
+- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — **not** because this
+  config is wrong, but because this workspace currently lacks the Build Cache for Xcode
+  entitlement, so every `IOS-*` scenario (including this GOOD baseline) runs in a cache-disabled
+  analytics-only mode. See `docs/reference/verified-facts.md` for the full finding; re-run once the
+  workspace is enabled to capture a real cache hit here.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline. Every `IOS-B*` scenario's "How to fix it" section points back

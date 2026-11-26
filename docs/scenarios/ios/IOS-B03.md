@@ -30,9 +30,15 @@ steps:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `remote_cache.engaged == false` (or absent `Proxy blob stats`/`SetSession` signal
-  entirely) despite the activation step itself reporting success.
+- Log evidence (real, build 28): activation reports `✅ Bitrise Build Cache for Xcode activated`,
+  then the build runs `/usr/bin/xcodebuild build` directly (absolute path, bypassing
+  `xcode-build-for-simulator`) and succeeds normally.
+- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — no `Proxy blob
+  stats`/`SetSession` lines anywhere in the log.
+- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
+  (`docs/reference/verified-facts.md`) — the same `baseline benchmark mode` line appears here too —
+  so this run alone can't cleanly isolate "bypass" from "not entitled." Re-verify the bypass
+  specifically once the workspace is enabled and `IOS-G01` is confirmed to show real cache hits.
 
 ## Why it happens
 `activate-build-cache-for-xcode` intercepts `xcodebuild` invocations via a mechanism tied to how

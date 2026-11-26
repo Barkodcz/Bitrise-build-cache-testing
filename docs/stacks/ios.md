@@ -37,12 +37,19 @@ use CocoaPods yet), `IOS-B09` (caching Archives/CoreSimulator), `IOS-R01` (regre
 - **Volatile compiler flags bust the whole module's cache** (`IOS-B04`): the Swift/Clang analogue
   of `AND-B03`'s volatile `BuildConfig` field.
 
-## Open verification question for this stack's first real run
+## Resolved from this stack's first real run (build 28, 2026-11-26)
 
-`activate-build-cache-for-xcode@1.10.1`'s own description says it "adds an alias to `~/.zshrc` and
-`~/.bashrc`" to wrap subsequent `xcodebuild` invocations — a different mechanism than the PATH-shim
-description in `docs/PROJECT_SPEC.md` §3.4/§6.2 (written against an older step version). Whether
-this alias-based interception actually reaches the **official** `xcode-build-for-simulator` step
-(a compiled toolkit, not an interactive shell that would source `.bashrc`) is genuinely unverified
-— `IOS-G01`'s first real run is exactly what will answer this. See
-`docs/reference/verified-facts.md`.
+The original open question — whether `activate-build-cache-for-xcode@1.10.1`'s alias/PATH-based
+interception reaches the **official** `xcode-build-for-simulator` step — turned out not to be the
+blocker. The mechanism works: activation exports the updated `PATH` via `envman`, and the build step
+resolves `xcodebuild` through it.
+
+The real blocker, found instead: **this workspace isn't enabled for Build Cache for Xcode.** Every
+`IOS-*` build logs `Bitrise Build Cache auto-activation skipped: workspace "0f453e706a6f6bb6" is not
+enabled for it`, and the activation step itself then reports `All active build tools in baseline
+benchmark mode (xcode=baseline (cache disabled)): cache disabled, analytics only` — a graceful,
+silent degradation to an analytics-only mode rather than a failure. Until Bitrise grants this
+workspace the entitlement (not something fixable from this repo's YAML), `IOS-G01` and `IOS-B01` are
+indistinguishable in captured metrics — both currently show `remote_cache.engaged == false`. See
+`docs/reference/verified-facts.md` for the full real log evidence; re-run and recapture once the
+workspace is enabled.

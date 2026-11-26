@@ -26,9 +26,14 @@ line:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `remote_cache.hits ≈ 0` on the measure run despite everything else about the setup being
-  identical to `IOS-G01`.
+- Log evidence (real, build 28): the generated xcconfig content for this scenario is visible in
+  the step log — `OTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)` — confirming
+  the volatile flag was actually passed to the build.
+- Metrics: `remote_cache.hits ≈ 0` / `found_any_signal == false` on the measure run.
+- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
+  (`docs/reference/verified-facts.md`), so real per-compile-unit cache misses from the volatile
+  flag can't be distinguished from the workspace not being entitled yet. Re-verify once the
+  workspace is enabled.
 
 ## Why it happens
 Swift's (and Clang's) compile cache keys on the exact invocation, including every compiler flag.
