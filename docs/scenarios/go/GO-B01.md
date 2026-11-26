@@ -32,9 +32,15 @@ steps:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._` — `go build`/`go test` still take close to
-  full-compile time on the measure run, even though `go mod download` traffic is near-zero
-  (the module cache hit).
+- **Real captured log** (`go-b01__2_measure`, build 21, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=gomod hit=exact
+  run-go.sh: using go version go1.22.0 linux/amd64
+  keybased_record: save name=gomod bytes=0
+  ```
+  — only `gomod` ever appears; no `gobuild` restore/save line exists anywhere in the log, confirming
+  the build cache really is never touched. (The `bytes=0` is a separate, cosmetic metrics-collector
+  bug, not part of this scenario's symptom — see `docs/reference/verified-facts.md`.)
 - Metrics: `key_based.saved == true` for the `gomod` entry; no `gobuild` entry exists in the
   metrics JSON at all.
 

@@ -32,7 +32,15 @@ Both phases use the exact same `gobuild` cache key template
 version is never part of the key.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`go-b02__2_measure`, build 21, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=gomod hit=exact
+  keybased_record: restore name=gobuild hit=exact
+  run-go.sh: using go version go1.22.0 linux/amd64
+  ```
+  — this is the measure run; the seed run used `go1.21.0`. The `gobuild` entry still reports
+  `hit=exact` even though the underlying toolchain changed, confirming the symptom exactly as
+  designed: an exact key match restoring cache content built by an incompatible toolchain.
 - Metrics: the `gobuild` entry's `restore_hit` can still report `exact` (the literal key string
   matched), but the restored cache was built by a different Go toolchain than the one now running —
   `go build` has no obligation to trust or reuse cache entries built by a different version, so real

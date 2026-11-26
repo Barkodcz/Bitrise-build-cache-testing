@@ -40,9 +40,14 @@ than relying on whatever Go happens to be preinstalled on the stack) — this is
 real Go versions.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`go-g01__2_measure`, build 21, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=gomod hit=exact
+  keybased_record: restore name=gobuild hit=exact
+  run-go.sh: using go version go1.22.0 linux/amd64
+  ```
 - Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run for both the
-  `gomod` and `gobuild` cache entries.
+  `gomod` and `gobuild` cache entries — confirmed `exact` for both on the first real run.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline. `GO-B01` and `GO-B02` both point back here.

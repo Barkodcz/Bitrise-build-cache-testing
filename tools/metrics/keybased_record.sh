@@ -26,8 +26,14 @@ size_of_paths() {
     [ -z "$p" ] && continue
     expanded="${p/#\~/$HOME}"
     if [ -e "$expanded" ]; then
-      sz=$(du -sk "$expanded" 2>/dev/null | cut -f1 || echo 0)
-      total=$((total + sz * 1024))
+      # `du` on a large Go/Gradle cache dir can print permission-denied warnings to stderr for a
+      # few unreadable files and exit non-zero even though it still reported a (partial) total —
+      # under `set -e`/`pipefail` that non-zero exit was silently zeroing this metric out entirely
+      # (verified 2026-11-26: a real report_go run showed archive_bytes=0 for both go caches despite
+      # a confirmed non-empty, successfully-saved cache). `|| true` on `du` itself (not just the
+      # pipe) keeps whatever partial total it managed to print.
+      sz=$( (du -sk "$expanded" 2>/dev/null || true) | awk '{print $1}' )
+      total=$((total + ${sz:-0} * 1024))
     fi
   done <<< "$paths"
   echo "$total"
