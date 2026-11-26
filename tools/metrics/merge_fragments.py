@@ -89,7 +89,11 @@ def main():
             "bytes_uploaded": xcode.get("uploaded_blobs"),
             "download_upload_ratio": None,
             "proxy_total": proxy_total,
-            "engaged": bool(xcode.get("set_session_seen")),
+            # "SetSession called" alone doesn't mean real cache traffic happened — confirmed on real
+            # infra (IOS-B01, Xcode 16.4): SetSession succeeds and the proxy connects, but
+            # proxy_total stays 0 (no compilation units ever get submitted to it). engaged therefore
+            # requires actual traffic (proxy_total > 0), not just a successful handshake.
+            "engaged": bool(proxy_total),
         }
         if not xcode.get("found_any_signal"):
             notes.append("no 'Proxy blob stats'/'SetSession' lines found in the raw xcodebuild log — "
