@@ -173,10 +173,50 @@ def go_steps(scn, phase):
     return steps, extra_envs
 
 
+def _rust_key(cache_name, include_toolchain_profile, toolchain, profile):
+    suffix = f'-{toolchain}-{profile}' if include_toolchain_profile else ''
+    return f'{cache_name}-{{{{ getenv "SHOWCASE_NS" }}}}-{{{{ .OS }}}}{suffix}-{{{{ checksum "projects/rust/Cargo.lock" }}}}'
+
+
+def rust_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    toolchain = overrides.pop("toolchain", "1.82.0")
+    profile = overrides.pop("profile", "release")
+    target_key_mode = overrides.pop("target_key_mode", "full")
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"toolchain", "profile", "target_key_mode", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    include = target_key_mode == "full"
+    registry_key = _rust_key("cargo-registry", False, toolchain, profile)  # registry is never profile/toolchain-scoped
+    target_key = _rust_key("cargo-target", include, toolchain, profile)
+
+    registry_restore = {"bundle::kb_restore": {"inputs": [{"key": registry_key}, {"name": "cargo-registry"}]}}
+    registry_save = {"bundle::kb_save": {"inputs": [{"key": registry_key}, {"paths": "~/.cargo/registry\n~/.cargo/git"}, {"name": "cargo-registry"}]}}
+    target_restore = {"bundle::kb_restore": {"inputs": [{"key": target_key}, {"name": "cargo-target"}]}}
+    target_save = {"bundle::kb_save": {"inputs": [{"key": target_key}, {"paths": "projects/rust/target"}, {"name": "cargo-target"}]}}
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    steps += [
+        registry_restore, target_restore,
+        {"bundle::rust_build": {"inputs": [{"toolchain": toolchain}, {"profile": profile}]}},
+        registry_save, target_save,
+        {"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}},
+    ]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
     "go": go_steps,
+    "rust": rust_steps,
 }
 
 

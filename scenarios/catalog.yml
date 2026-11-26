@@ -466,9 +466,59 @@ scenarios:
     field_evidence: "Pinning the toolchain (go.mod `go` directive / CI image) is necessary but not sufficient — the cache key itself should include the version too."
 
   # ───────────────────────────── Rust — all planned ─────────────────────────────
-  - { id: RS-G01, stack: rust, title: "cargo registry + scoped target/ cache", verdict: good, status: planned, doc: docs/scenarios/rust/RS-G01.md }
-  - { id: RS-B01, stack: rust, title: "target/ keyed only on Cargo.lock across profiles", verdict: bad, status: planned, doc: docs/scenarios/rust/RS-B01.md, symptom: "Huge archive, mostly recompiled anyway.", root_cause: "Seed builds --release, measure builds debug, same cache key.", fix_ref: RS-G01 }
-  - { id: RS-B02, stack: rust, title: "No rust-toolchain.toml, floating toolchain", verdict: bad, status: planned, doc: docs/scenarios/rust/RS-B02.md, symptom: "Invalidation after a toolchain update (simulated via RUSTUP_TOOLCHAIN change).", root_cause: "Toolchain not pinned; target/ cache key doesn't include it.", fix_ref: RS-G01 }
+  - id: RS-G01
+    stack: rust
+    title: "cargo registry + scoped target/ cache"
+    verdict: good
+    status: implemented
+    pattern_tags: [scoped-target-key, pinned-toolchain]
+    seed: { bundle_overrides: { toolchain: "1.82.0", profile: "release", target_key_mode: "full" } }
+    measure: { bundle_overrides: { toolchain: "1.82.0", profile: "release", target_key_mode: "full" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/rust/RS-G01.md
+    field_evidence: "Baseline every RS-B* scenario is compared against."
+
+  - id: RS-B01
+    stack: rust
+    title: "target/ keyed only on Cargo.lock across profiles"
+    verdict: bad
+    status: implemented
+    pattern_tags: [under-scoped-key, profile-mismatch]
+    seed: { bundle_overrides: { toolchain: "1.82.0", profile: "release", target_key_mode: "checksum_only" } }
+    measure: { bundle_overrides: { toolchain: "1.82.0", profile: "dev", target_key_mode: "checksum_only" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "Seed builds --release, measure builds the dev profile, but both share the exact same cargo-target cache key — restoring a release-profile target/ under a debug build (and vice versa) is mostly useless, and the save step keeps overwriting one profile's output with the other's."
+    root_cause: "cargo-target cache key is checksum(Cargo.lock) only — it does not include the build profile."
+    fix_ref: RS-G01
+    doc: docs/scenarios/rust/RS-B01.md
+    field_evidence: "Debug and release builds produce structurally different target/ artifacts; a shared key means whichever profile ran last 'wins' the cache slot."
+
+  - id: RS-B02
+    stack: rust
+    title: "No rust-toolchain.toml, floating toolchain"
+    verdict: bad
+    status: implemented
+    pattern_tags: [toolchain-drift]
+    seed: { bundle_overrides: { toolchain: "1.75.0", profile: "release", target_key_mode: "checksum_only" } }
+    measure: { bundle_overrides: { toolchain: "1.82.0", profile: "release", target_key_mode: "checksum_only" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "GOCACHE-style compiled objects from the seed's Rust 1.75.0 are restored under the same key during the measure build's Rust 1.82.0 run, even though they're from an incompatible toolchain."
+    root_cause: "Seed builds with Rust 1.75.0, measure with Rust 1.82.0 — the cargo-target cache key is checksum(Cargo.lock) only, with no toolchain version in it."
+    fix_ref: RS-G01
+    doc: docs/scenarios/rust/RS-B02.md
+    field_evidence: "Pinning the toolchain (a rust-toolchain.toml) is necessary but not sufficient — the cache key itself should include the version too, the same lesson GO-B02 teaches for Go."
 
   # ───────────────────────────── Python — all planned ─────────────────────────────
   - { id: PY-G01, stack: python, title: "pip cache keyed on requirements*.txt", verdict: good, status: planned, doc: docs/scenarios/python/PY-G01.md }

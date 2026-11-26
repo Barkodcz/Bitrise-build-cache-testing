@@ -21,7 +21,7 @@ This repo is `bitrise-build-cache-showcase`. Source of truth for the full design
 ## Scope status (read this first)
 
 The full spec (§13 milestones) covers 10 stacks and ~90 scenarios. This repo currently
-**implements** three stacks end-to-end (`android`, `node`, `go` — see `status: implemented` in
+**implements** four stacks end-to-end (`android`, `node`, `go`, `rust` — see `status: implemented` in
 `scenarios/catalog.yml`) and carries every other spec'd scenario as `status: planned`
 (catalog entry + doc stub, no bundle/workflow yet). When picking up more stacks, follow
 the same pattern used for `android`/`node`: generator project → bundles → catalog entries

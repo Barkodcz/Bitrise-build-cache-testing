@@ -3,34 +3,69 @@ id: RS-B01
 verdict: bad
 stack: rust
 fix_ref: RS-G01
-tags: []
+tags: [under-scoped-key, profile-mismatch]
 ---
 # RS-B01 — target/ keyed only on Cargo.lock across profiles
 
-**In one sentence:** Huge archive, mostly recompiled anyway.
+**In one sentence:** the seed build compiles the `release` profile, the measure build compiles the
+`dev` profile, but both share the exact same `cargo-target` cache key — restoring one profile's
+`target/` into a build that wants the other profile's output is mostly useless, and whichever
+profile ran most recently keeps overwriting the saved cache slot.
 
 ## What the configuration does
-> _Status: `planned` — not implemented yet (see CLAUDE.md "Scope status"). This page is a stub generated
-> from `scenarios/catalog.yml`; it will get real YAML/code excerpts, log evidence and a fix diff when
-> this scenario moves to `status: implemented`._
+`.bitrise/workflows/rust.yml` `rs-b01__*` — same as `RS-G01` except the `cargo-target` key drops
+the toolchain+profile suffix, and the profile itself differs between phases:
 
-**Root cause:** Seed builds --release, measure builds debug, same cache key.
+```yaml
+# rs-b01__1_seed
+- bundle::kb_restore:
+    inputs:
+    - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock" }}
+- bundle::rust_build:
+    inputs:
+    - toolchain: "1.82.0"
+    - profile: "release"
+
+# rs-b01__2_measure
+- bundle::kb_restore:
+    inputs:
+    - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock" }}
+- bundle::rust_build:
+    inputs:
+    - toolchain: "1.82.0"
+    - profile: "dev"
+```
 
 ## What you see
-> _To be captured from a real run._
+- Log evidence: `> _To be captured from a real run._`
+- Metrics: `key_based.restore_hit` may report a hit (the literal key string matches), but the
+  restored `target/` was built for a different profile than the one now compiling — Cargo's own
+  fingerprinting will notice the mismatch per-unit and recompile, so the restore time was wasted.
 
 ## Why it happens
-> _To be written when implemented._
+`cargo build --release` and plain `cargo build` (dev profile) produce structurally different
+artifacts under `target/release/` vs `target/debug/` — they don't even collide on disk within the
+same `target/` directory, but restoring/saving the *whole* `target/` tree under one shared key means
+every save overwrites the previous profile's half of the tree, and every restore brings back
+whichever profile was saved last, regardless of which one the current build actually wants.
 
 ## How to fix it
-Fixed by following `RS-G01`.
+```diff
+-    key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock" }}
++    key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-1.82.0-release-{{ checksum "projects/rust/Cargo.lock" }}
+```
+(include the profile — and the toolchain, see `RS-B02` — in the key, and use the **same** profile in
+both seed and measure) → `RS-G01`.
 
 ## How to confirm the fix
-> _To be captured from a real run._
+Once the key includes the profile, each profile gets its own cache slot and stops contending with
+the other — restoring a `release` cache no longer competes with a `dev` build's own cache.
 
 ## Seen in the wild
-_No field-evidence note recorded yet._
+Debug and release builds produce structurally different `target/` artifacts; a shared key means
+whichever profile ran last "wins" the cache slot — a subtler version of `AND-B08`'s JDK-mismatch
+lesson, scoped to a build profile instead of a toolchain version.
 
 ## References
-- `docs/PROJECT_SPEC.md` (source spec for this scenario)
+- `docs/PROJECT_SPEC.md` §6.9
 - `scenarios/catalog.yml` (`RS-B01`)

@@ -101,6 +101,26 @@ pipelines:
         - node-b03__2_measure
         - node-b05__2_measure
         should_always_run: workflow
+  showcase-rust:
+    workflows:
+      report_rust:
+        depends_on:
+        - rs-g01__2_measure
+        - rs-b01__2_measure
+        - rs-b02__2_measure
+        should_always_run: workflow
+      rs-b01__1_seed: {}
+      rs-b01__2_measure:
+        depends_on:
+        - rs-b01__1_seed
+      rs-b02__1_seed: {}
+      rs-b02__2_measure:
+        depends_on:
+        - rs-b02__1_seed
+      rs-g01__1_seed: {}
+      rs-g01__2_measure:
+        depends_on:
+        - rs-g01__1_seed
 project_type: other
 step_bundles:
   collect_metrics:
@@ -283,6 +303,18 @@ step_bundles:
     - deploy-to-bitrise-io@2.26.2:
         inputs:
         - deploy_path: $BITRISE_SOURCE_DIR/.showcase/report
+  rust_build:
+    inputs:
+    - toolchain: stable
+    - profile: release
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-rust.sh "$toolchain" "$profile"
+        title: cargo build + test
   setup_checkout:
     inputs:
     - clone_dir: $BITRISE_SOURCE_DIR
@@ -1152,3 +1184,282 @@ workflows:
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-node
+  report_rust:
+    envs:
+    - SHOWCASE_STACK: rust
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::report: {}
+    summary: Renders the HTML/Markdown report and runs assertions for this stack.
+    title: Report · showcase-rust
+  rs-b01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-B01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.82.0
+        - profile: release
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Seed builds --release, measure builds the dev profile, but both
+      share the exact same cargo-target cache key — restoring a release-profile target/
+      under a debug build (and vice versa) is mostly useless, and the save step keeps
+      overwriting one profile's output with the other's.
+    title: RS-B01 · seed
+  rs-b01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-B01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.82.0
+        - profile: dev
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Seed builds --release, measure builds the dev profile, but both
+      share the exact same cargo-target cache key — restoring a release-profile target/
+      under a debug build (and vice versa) is mostly useless, and the save step keeps
+      overwriting one profile's output with the other's.
+    title: RS-B01 · measure
+  rs-b02__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-B02
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.75.0
+        - profile: release
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — GOCACHE-style compiled objects from the seed's Rust 1.75.0 are
+      restored under the same key during the measure build's Rust 1.82.0 run, even
+      though they're from an incompatible toolchain.
+    title: RS-B02 · seed
+  rs-b02__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-B02
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.82.0
+        - profile: release
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — GOCACHE-style compiled objects from the seed's Rust 1.75.0 are
+      restored under the same key during the measure build's Rust 1.82.0 run, even
+      though they're from an incompatible toolchain.
+    title: RS-B02 · measure
+  rs-g01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-G01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-1.82.0-release-{{
+            checksum "projects/rust/Cargo.lock" }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.82.0
+        - profile: release
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-1.82.0-release-{{
+            checksum "projects/rust/Cargo.lock" }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — cargo registry + scoped target/ cache
+    title: RS-G01 · seed
+  rs-g01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: RS-G01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: rust
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - name: cargo-registry
+    - bundle::kb_restore:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-1.82.0-release-{{
+            checksum "projects/rust/Cargo.lock" }}
+        - name: cargo-target
+    - bundle::rust_build:
+        inputs:
+        - toolchain: 1.82.0
+        - profile: release
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-registry-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/rust/Cargo.lock"
+            }}
+        - paths: |-
+            ~/.cargo/registry
+            ~/.cargo/git
+        - name: cargo-registry
+    - bundle::kb_save:
+        inputs:
+        - key: cargo-target-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-1.82.0-release-{{
+            checksum "projects/rust/Cargo.lock" }}
+        - paths: projects/rust/target
+        - name: cargo-target
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — cargo registry + scoped target/ cache
+    title: RS-G01 · measure

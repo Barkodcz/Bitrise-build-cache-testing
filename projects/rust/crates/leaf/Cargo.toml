@@ -1,0 +1,11 @@
+[package]
+name = "showcase-leaf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+showcase-core = { path = "../core" }
+
+[[bin]]
+name = "showcase-leaf"
+path = "src/main.rs"

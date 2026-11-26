@@ -2,10 +2,9 @@
 # Each bundle pairs the official cache step with a `keybased_record.sh` call so the scenario
 # workflow itself only ever references `bundle::*` (spec §7.1's "raw step in a scenario = a smell").
 # `node_install` is the npm-specific wrapper used by the Node scenarios (scenarios/catalog.yml
-# NODE-*); `go_build` is the Go wrapper used by the Go scenarios (GO-*). Ruby/Rust/Python/Maven
-# wrappers are not implemented yet (status: planned) — add `ruby_install` / `rust_build` /
-# `python_install` / `maven_build` here, following the same shape, when those stacks move to
-# `status: implemented`.
+# NODE-*); `go_build`/`rust_build` are the Go/Rust wrappers (GO-*/RS-*). Ruby/Python/Maven wrappers
+# are not implemented yet (status: planned) — add `ruby_install` / `python_install` / `maven_build`
+# here, following the same shape, when those stacks move to `status: implemented`.
 step_bundles:
   kb_restore:
     inputs:
@@ -78,3 +77,19 @@ step_bundles:
             #!/usr/bin/env bash
             set -euo pipefail
             "$BITRISE_SOURCE_DIR"/tools/run-go.sh "$go_version"
+
+  # `cargo build && cargo test` against projects/rust, via tools/run-rust.sh (spec §6.9). Always
+  # installs the pinned `toolchain` from scratch via rustup rather than relying on whatever's
+  # preinstalled on the stack — this is what makes RS-B02's toolchain-drift scenario meaningful.
+  rust_build:
+    inputs:
+    - toolchain: "stable"
+    - profile: "release"
+    steps:
+    - script@1.2.1:
+        title: "cargo build + test"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-rust.sh "$toolchain" "$profile"

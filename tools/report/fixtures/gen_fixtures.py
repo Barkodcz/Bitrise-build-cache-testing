@@ -88,4 +88,10 @@ kb_fixture("GO-G01", restore_hit="exact", stack="go", name="gobuild", seed_dur=2
 kb_fixture("GO-B01", restore_hit="exact", stack="go", name="gomod", seed_dur=20, measure_dur=19)
 kb_fixture("GO-B02", restore_hit="exact", stack="go", name="gobuild", seed_dur=20, measure_dur=18)
 
+# Rust: RS-G01 good (scoped cargo-target cache hits cleanly); RS-B01/RS-B02 bad (under-scoped key
+# reports a hit, but the symptom is in wasted time / incompatible content, not restore_hit itself).
+kb_fixture("RS-G01", restore_hit="exact", stack="rust", name="cargo-target", seed_dur=15, measure_dur=4)
+kb_fixture("RS-B01", restore_hit="exact", stack="rust", name="cargo-target", seed_dur=15, measure_dur=14)
+kb_fixture("RS-B02", restore_hit="exact", stack="rust", name="cargo-target", seed_dur=15, measure_dur=14)
+
 print("fixtures written")
