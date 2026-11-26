@@ -41,6 +41,30 @@ def gradle_fixture(sid, seed_share, measure_share, seed_dur, measure_dur, engage
                                 "download_upload_ratio": None, "proxy_total": None, "engaged": engaged and from_cache > 0}
     write(sid, "measure", measure)
 
+def xcode_fixture(sid, measure_hits, measure_total, engaged, seed_dur=60, measure_dur=20):
+    seed = base(sid, "ios", "seed")
+    seed["durations_s"]["build_step"] = seed_dur
+    seed["durations_s"]["total_workflow"] = seed_dur + 30
+    seed["xcode"] = {"proxy_hits": 0, "proxy_total": measure_total, "uploaded_blobs": measure_total,
+                      "set_session_seen": engaged, "xcelerate_logs": [], "found_any_signal": True}
+    seed["remote_cache"] = {"tool": "xcode", "hits": 0, "misses": measure_total, "hit_rate": 0.0,
+                             "bytes_downloaded": None, "bytes_uploaded": None, "download_upload_ratio": None,
+                             "proxy_total": measure_total, "engaged": engaged}
+    write(sid, "seed", seed)
+
+    measure = base(sid, "ios", "measure")
+    measure["durations_s"]["build_step"] = measure_dur
+    measure["durations_s"]["total_workflow"] = measure_dur + 30
+    measure["xcode"] = {"proxy_hits": measure_hits, "proxy_total": measure_total,
+                         "uploaded_blobs": measure_total - measure_hits, "set_session_seen": engaged,
+                         "xcelerate_logs": [], "found_any_signal": True}
+    measure["remote_cache"] = {"tool": "xcode", "hits": measure_hits, "misses": measure_total - measure_hits,
+                                "hit_rate": (measure_hits / measure_total) if measure_total else None,
+                                "bytes_downloaded": None, "bytes_uploaded": None, "download_upload_ratio": None,
+                                "proxy_total": measure_total, "engaged": engaged}
+    write(sid, "measure", measure)
+
+
 def kb_fixture(sid, restore_hit, saved=True, seed_dur=40, measure_dur=38, stack="node", name="npm",
                key_based_entries=None):
     seed = base(sid, stack, "seed")
@@ -112,5 +136,13 @@ kb_fixture("MVN-B02", restore_hit="exact", stack="jvm-maven", name="m2-repo", se
 kb_fixture("RB-G01", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=5)
 kb_fixture("RB-B01", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=22)
 kb_fixture("RB-B02", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=22)
+
+# iOS: IOS-G01 good (high hit share, fast measure); IOS-B01/B03/B05 bad (never engaged, 0 hits);
+# IOS-B04 bad (engaged but ~0 hits every build -- volatile flag).
+xcode_fixture("IOS-G01", measure_hits=85, measure_total=100, engaged=True, seed_dur=90, measure_dur=25)
+xcode_fixture("IOS-B01", measure_hits=0, measure_total=100, engaged=False, seed_dur=90, measure_dur=88)
+xcode_fixture("IOS-B03", measure_hits=0, measure_total=100, engaged=False, seed_dur=90, measure_dur=89)
+xcode_fixture("IOS-B04", measure_hits=2, measure_total=100, engaged=True, seed_dur=90, measure_dur=87)
+xcode_fixture("IOS-B05", measure_hits=0, measure_total=100, engaged=False, seed_dur=90, measure_dur=88)
 
 print("fixtures written")

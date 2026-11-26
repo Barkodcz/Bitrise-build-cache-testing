@@ -1,0 +1,102 @@
+# Xcode step bundles (spec §7.3, §6.2). `activate-build-cache-for-xcode@1.10.1` inputs verified
+# 2026-11-26 (docs/reference/verified-facts.md): push, cache, no_swift_cache, cache_skip_flags,
+# disable_prefix_mapping, verbose, silent, timestamps. Per the step's own description it "adds an
+# alias to ~/.zshrc and ~/.bashrc" to wrap subsequent xcodebuild invocations — a different
+# mechanism than the PATH-shim description in docs/PROJECT_SPEC.md §3.4/§6.2 (written against an
+# older step version). Whether this alias-based interception actually reaches the OFFICIAL
+# `xcode-build-for-simulator` step (a compiled toolkit, not an interactive shell) is an open
+# [VERIFY] item — see verified-facts.md; this is exactly what IOS-G01's first real run will show.
+step_bundles:
+  xcode_build_cache:
+    inputs:
+    - push: "true"
+    - verbose: "false"
+    steps:
+    - activate-build-cache-for-xcode@1.10.1:
+        inputs:
+        - push: $push
+        - verbose: $verbose
+
+  # xcodebuild for the iOS Simulator (no code signing required) against projects/ios. The project
+  # itself is NOT committed — only project.yml (XcodeGen spec) is; `xcodegen generate` regenerates
+  # ShowcaseiOS.xcodeproj deterministically as the first step here (spec §4.3's "no committed
+  # .xcodeproj").
+  xcode_build_sim:
+    inputs:
+    - scheme: "ShowcaseiOS"
+    # Matches the step's own built-in default (spec §7.3 keeps the defect visible in the generated
+    # YAML) — IOS-B04 overrides this with an extra OTHER_SWIFT_FLAGS line baking in
+    # $BITRISE_BUILD_NUMBER, a value that changes every single build.
+    - xcconfig_content: |-
+        CODE_SIGNING_ALLOWED=NO
+        COMPILER_INDEX_STORE_ENABLE=NO
+    steps:
+    - script@1.2.1:
+        title: "xcodegen generate"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            if ! command -v xcodegen >/dev/null 2>&1; then
+              brew install xcodegen
+            fi
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            xcodegen generate
+    - xcode-build-for-simulator@3.0.3:
+        inputs:
+        - project_path: "$BITRISE_SOURCE_DIR/projects/ios/ShowcaseiOS.xcodeproj"
+        - scheme: $scheme
+        - xcconfig_content: $xcconfig_content
+    - script@1.2.1:
+        title: "Collect Xcode build-cache metrics"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
+              --raw-log "${BITRISE_XCODE_RAW_RESULT_TEXT_PATH:-}" \
+              --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"
+
+  # ANTI-PATTERN, used by IOS-B03 only: calls /usr/bin/xcodebuild directly by absolute path
+  # (simulating Tuist/fastlane/a custom script bypassing the PATH/alias-based interception that
+  # activate-build-cache-for-xcode installs), instead of using the official xcode-build-for-
+  # simulator step. Same build, same project, deliberately NOT going through any official
+  # Bitrise-provided build step.
+  xcode_build_sim_bypass:
+    inputs:
+    - scheme: "ShowcaseiOS"
+    steps:
+    - script@1.2.1:
+        title: "xcodegen generate"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            if ! command -v xcodegen >/dev/null 2>&1; then
+              brew install xcodegen
+            fi
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            xcodegen generate
+    - script@1.2.1:
+        title: "xcodebuild via absolute path (bypasses any shim/alias)"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh start build_step
+            /usr/bin/xcodebuild build \
+              -project ShowcaseiOS.xcodeproj -scheme "$scheme" \
+              -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO \
+              2>&1 | tee "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcodebuild-raw.log"
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh stop build_step
+    - script@1.2.1:
+        title: "Collect Xcode build-cache metrics"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
+              --raw-log "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcodebuild-raw.log" \
+              --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"

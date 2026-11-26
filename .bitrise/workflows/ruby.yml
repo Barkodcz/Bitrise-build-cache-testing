@@ -58,7 +58,7 @@ workflows:
     - bundle::deploy_metrics: {}
   rb-b01__1_seed:
     title: RB-B01 · seed
-    summary: ❌ BAD — The nokogiri native gem compiled on Linux is restored into a macOS build; it's unusable there, so bundle install has to detect the failure and reinstall from scratch rather than actually benefiting from the restore.
+    summary: ❌ BAD — The Linux-built archive genuinely matches the cache key on the macOS measure build ('Exact hit'), but restore-cache@3.0.2 fails outright extracting it onto this macOS stack ('Read-only file system') — a more dramatic real-world failure mode than the hypothesized subtler ABI mismatch. The step failure doesn't fail the workflow; the build falls through to a clean bundle install.
     meta:
       bitrise.io:
         stack: ubuntu-noble-24.04-bitrise-2025-android
@@ -85,7 +85,7 @@ workflows:
     - bundle::deploy_metrics: {}
   rb-b01__2_measure:
     title: RB-B01 · measure
-    summary: ❌ BAD — The nokogiri native gem compiled on Linux is restored into a macOS build; it's unusable there, so bundle install has to detect the failure and reinstall from scratch rather than actually benefiting from the restore.
+    summary: ❌ BAD — The Linux-built archive genuinely matches the cache key on the macOS measure build ('Exact hit'), but restore-cache@3.0.2 fails outright extracting it onto this macOS stack ('Read-only file system') — a more dramatic real-world failure mode than the hypothesized subtler ABI mismatch. The step failure doesn't fail the workflow; the build falls through to a clean bundle install.
     meta:
       bitrise.io:
         stack: osx-xcode-latest-stable
@@ -113,7 +113,7 @@ workflows:
     - bundle::deploy_metrics: {}
   rb-b02__1_seed:
     title: RB-B02 · seed
-    summary: ❌ BAD — Gems restore under a matching key (same OS, same Gemfile.lock) but were compiled for Ruby 3.2.2's native extension ABI; running them under Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather than genuinely reusing the cache.
+    summary: ❌ BAD — Restore reports an exact hit (confirmed on real infra, build 27) and the build 'looks' fine -- no error -- but bundle install silently recompiles nokogiri from scratch because Bundler installs native extensions under a Ruby-ABI-versioned path, costing ~2.7 minutes vs ~13 seconds for a matching-version run. Almost none of the cache's benefit is realized despite the exact hit.
     meta:
       bitrise.io:
         stack: ubuntu-noble-24.04-bitrise-2025-android
@@ -140,7 +140,7 @@ workflows:
     - bundle::deploy_metrics: {}
   rb-b02__2_measure:
     title: RB-B02 · measure
-    summary: ❌ BAD — Gems restore under a matching key (same OS, same Gemfile.lock) but were compiled for Ruby 3.2.2's native extension ABI; running them under Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather than genuinely reusing the cache.
+    summary: ❌ BAD — Restore reports an exact hit (confirmed on real infra, build 27) and the build 'looks' fine -- no error -- but bundle install silently recompiles nokogiri from scratch because Bundler installs native extensions under a Ruby-ABI-versioned path, costing ~2.7 minutes vs ~13 seconds for a matching-version run. Almost none of the cache's benefit is realized despite the exact hit.
     meta:
       bitrise.io:
         stack: ubuntu-noble-24.04-bitrise-2025-android

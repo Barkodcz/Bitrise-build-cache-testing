@@ -254,14 +254,99 @@ scenarios:
     fix_ref: null
     note: "optional per spec §6.1"
 
-  # ───────────────────────────── iOS / Xcode (showcase-ios) — all planned ─────────────────────────────
-  - { id: IOS-G01, stack: ios, title: "Correct setup (Xcode 26, simulator build)", verdict: good, status: planned, doc: docs/scenarios/ios/IOS-G01.md }
+  # ───────────────────────────── iOS / Xcode (showcase-ios) ─────────────────────────────
+  - id: IOS-G01
+    stack: ios
+    title: "Correct setup (Xcode 26+, simulator build)"
+    verdict: good
+    status: implemented
+    pattern_tags: [placement-ok, official-steps, no-signing]
+    seed: { bundle_overrides: { activation: "before", build_mode: "official" } }
+    measure: { bundle_overrides: { activation: "before", build_mode: "official" } }
+    stack_id: xcode-26
+    machine: linux-default
+    expectations:
+      remote_cache.engaged: "exists"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/ios/IOS-G01.md
+    field_evidence: "Baseline every IOS-B* scenario is compared against."
+
+  - id: IOS-B01
+    stack: ios
+    title: "Old Xcode = silent no-op"
+    verdict: bad
+    status: implemented
+    pattern_tags: [unsupported-xcode-version]
+    seed: { bundle_overrides: { activation: "before", build_mode: "official" }, stack_id: xcode-16-legacy }
+    measure: { bundle_overrides: { activation: "before", build_mode: "official" }, stack_id: xcode-16-legacy }
+    stack_id: xcode-16-legacy
+    machine: linux-default
+    expectations:
+      remote_cache.engaged: "== false"
+    symptom: "The activation step itself reports success, but Build Cache for Xcode needs Xcode 26+ (it's an Xcode compilation-caching feature) — on an older stack it's a silent no-op: no cache traffic, no speed-up."
+    root_cause: "activate-build-cache-for-xcode runs on an Xcode 16.4 stack, which predates the feature."
+    fix_ref: IOS-G01
+    doc: docs/scenarios/ios/IOS-B01.md
+    field_evidence: "Easy to miss because the step itself never fails or warns — it just does nothing useful on an unsupported Xcode version."
+
   - { id: IOS-G02, stack: ios, title: "Correct setup, archive", verdict: good, status: planned, doc: docs/scenarios/ios/IOS-G02.md }
-  - { id: IOS-B01, stack: ios, title: "Old Xcode = silent no-op", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B01.md, symptom: "Step green; zero cache traffic; durations unchanged.", root_cause: "Activation run on a pre-Xcode-26 stack.", fix_ref: IOS-G01 }
   - { id: IOS-B02, stack: ios, title: "DerivedData key-cached alongside Build Cache", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B02.md, symptom: "Remote cache barely queried; local DerivedData short-circuits it.", root_cause: "~/Library/Developer/Xcode/DerivedData key-cached in the same workflow as activation.", fix_ref: IOS-G01 }
-  - { id: IOS-B03, stack: ios, title: "Shim bypass via absolute path", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B03.md, symptom: "Proxy blob stats absent or total: 0; no SetSession.", root_cause: "Script/Tuist/fastlane calls /usr/bin/xcodebuild directly, bypassing the PATH shim.", fix_ref: IOS-G01 }
-  - { id: IOS-B04, stack: ios, title: "Volatile preprocessor/Swift flag", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B04.md, symptom: "~0% hits; full re-upload every build.", root_cause: "BUILD_NUMBER baked in via GCC_PREPROCESSOR_DEFINITIONS / OTHER_SWIFT_FLAGS.", fix_ref: IOS-G01 }
-  - { id: IOS-B05, stack: ios, title: "Activation after build", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B05.md, symptom: "Same as IOS-B01 for that invocation.", root_cause: "Activation step placed after the build step.", fix_ref: IOS-G01 }
+
+  - id: IOS-B03
+    stack: ios
+    title: "Shim bypass via absolute path"
+    verdict: bad
+    status: implemented
+    pattern_tags: [shim-bypass]
+    seed: { bundle_overrides: { activation: "before", build_mode: "bypass" } }
+    measure: { bundle_overrides: { activation: "before", build_mode: "bypass" } }
+    stack_id: xcode-26
+    machine: linux-default
+    expectations:
+      remote_cache.engaged: "exists"
+    symptom: "The build calls /usr/bin/xcodebuild directly by absolute path (simulating Tuist/fastlane/a custom script) instead of going through the official xcode-build-for-simulator step — no cache traffic, even though activation ran successfully right before it."
+    root_cause: "activate-build-cache-for-xcode's interception only wraps invocations that go through its own mechanism; calling the real xcodebuild binary directly bypasses it entirely."
+    fix_ref: IOS-G01
+    doc: docs/scenarios/ios/IOS-B03.md
+    field_evidence: "The classic Tuist/custom-fastlane-config failure mode — activation looks fine in the logs, but the actual build tool never goes through it."
+
+  - id: IOS-B04
+    stack: ios
+    title: "Volatile Swift flag"
+    verdict: bad
+    status: implemented
+    pattern_tags: [volatile-input]
+    seed: { bundle_overrides: { activation: "before", build_mode: "official", volatile_flag: "true" } }
+    measure: { bundle_overrides: { activation: "before", build_mode: "official", volatile_flag: "true" } }
+    stack_id: xcode-26
+    machine: linux-default
+    expectations:
+      remote_cache.engaged: "exists"
+    symptom: "Every Swift compile unit misses the cache on every single build, because the flags passed to the Swift compiler are never the same twice."
+    root_cause: 'OTHER_SWIFT_FLAGS bakes in $(BITRISE_BUILD_NUMBER), a value that changes on every single build — Swift (like Gradle, like Go, like Rust) keys its compile cache on its exact invocation flags.'
+    fix_ref: IOS-G01
+    doc: docs/scenarios/ios/IOS-B04.md
+    field_evidence: "The Xcode/Swift equivalent of AND-B03's volatile BuildConfig field — any volatile value injected into a widely-applied compiler flag busts every single compile unit's cache key."
+
+  - id: IOS-B05
+    stack: ios
+    title: "Activation after build"
+    verdict: bad
+    status: implemented
+    pattern_tags: [placement-wrong]
+    seed: { bundle_overrides: { activation: "after", build_mode: "official" } }
+    measure: { bundle_overrides: { activation: "after", build_mode: "official" } }
+    stack_id: xcode-26
+    machine: linux-default
+    expectations:
+      remote_cache.engaged: "== false"
+    symptom: "Same as IOS-B01 for that build: the activation step is green, but it ran after xcode-build-for-simulator, so that build got zero benefit from it."
+    root_cause: "bundle::xcode_build_cache placed after bundle::xcode_build_sim in the workflow."
+    fix_ref: IOS-G01
+    doc: docs/scenarios/ios/IOS-B05.md
+    field_evidence: "Same ordering mistake as AND-B02, for Xcode instead of Gradle."
   - { id: IOS-B06, stack: ios, title: "no_swift_cache as default", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B06.md, symptom: "Clang/ObjC hits, but all Swift targets compile uncached.", root_cause: "no_swift_cache: true left on without an explicit-modules workaround need.", fix_ref: IOS-G01 }
   - { id: IOS-B07, stack: ios, title: "CocoaPods key mismatch", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B07.md, symptom: "BITRISE_CACHE_HIT=false every time; pod install downloads every build.", root_cause: "restore key checksums Podfile.lock, save key checksums Podfile.", fix_ref: IOS-G01 }
   - { id: IOS-B08, stack: ios, title: "Pods/ instead of CocoaPods cache dir", verdict: bad, status: planned, doc: docs/scenarios/ios/IOS-B08.md, symptom: "Works, but larger archive and more invalidation than necessary.", root_cause: "Caches Pods/ instead of ~/Library/Caches/CocoaPods.", fix_ref: IOS-G01 }

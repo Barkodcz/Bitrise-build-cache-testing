@@ -12,6 +12,7 @@ include:
 - path: .bitrise/bundles/common.yml
 - path: .bitrise/bundles/gradle.yml
 - path: .bitrise/bundles/key-based.yml
+- path: .bitrise/bundles/xcode.yml
 - path: .bitrise/workflows/android.yml
 - path: .bitrise/workflows/node.yml
 - path: .bitrise/workflows/go.yml
@@ -19,6 +20,7 @@ include:
 - path: .bitrise/workflows/python.yml
 - path: .bitrise/workflows/jvm-maven.yml
 - path: .bitrise/workflows/ruby.yml
+- path: .bitrise/workflows/ios.yml
 - path: .bitrise/pipelines/android.yml
 - path: .bitrise/pipelines/node.yml
 - path: .bitrise/pipelines/go.yml
@@ -26,3 +28,4 @@ include:
 - path: .bitrise/pipelines/python.yml
 - path: .bitrise/pipelines/jvm-maven.yml
 - path: .bitrise/pipelines/ruby.yml
+- path: .bitrise/pipelines/ios.yml

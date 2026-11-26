@@ -71,6 +71,36 @@ pipelines:
         - go-b01__2_measure
         - go-b02__2_measure
         should_always_run: workflow
+  showcase-ios:
+    workflows:
+      ios-b01__1_seed: {}
+      ios-b01__2_measure:
+        depends_on:
+        - ios-b01__1_seed
+      ios-b03__1_seed: {}
+      ios-b03__2_measure:
+        depends_on:
+        - ios-b03__1_seed
+      ios-b04__1_seed: {}
+      ios-b04__2_measure:
+        depends_on:
+        - ios-b04__1_seed
+      ios-b05__1_seed: {}
+      ios-b05__2_measure:
+        depends_on:
+        - ios-b05__1_seed
+      ios-g01__1_seed: {}
+      ios-g01__2_measure:
+        depends_on:
+        - ios-g01__1_seed
+      report_ios:
+        depends_on:
+        - ios-g01__2_measure
+        - ios-b01__2_measure
+        - ios-b03__2_measure
+        - ios-b04__2_measure
+        - ios-b05__2_measure
+        should_always_run: workflow
   showcase-jvm-maven:
     workflows:
       mvn-b01__1_seed: {}
@@ -439,6 +469,85 @@ step_bundles:
             set -euo pipefail
             "$BITRISE_SOURCE_DIR/tools/simulate-change.sh" "$SHOWCASE_STACK" "$kind"
         title: Simulate change ($kind)
+  xcode_build_cache:
+    inputs:
+    - push: "true"
+    - verbose: "false"
+    steps:
+    - activate-build-cache-for-xcode@1.10.1:
+        inputs:
+        - push: $push
+        - verbose: $verbose
+  xcode_build_sim:
+    inputs:
+    - scheme: ShowcaseiOS
+    - xcconfig_content: |-
+        CODE_SIGNING_ALLOWED=NO
+        COMPILER_INDEX_STORE_ENABLE=NO
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            if ! command -v xcodegen >/dev/null 2>&1; then
+              brew install xcodegen
+            fi
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            xcodegen generate
+        title: xcodegen generate
+    - xcode-build-for-simulator@3.0.3:
+        inputs:
+        - project_path: $BITRISE_SOURCE_DIR/projects/ios/ShowcaseiOS.xcodeproj
+        - scheme: $scheme
+        - xcconfig_content: $xcconfig_content
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
+              --raw-log "${BITRISE_XCODE_RAW_RESULT_TEXT_PATH:-}" \
+              --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"
+        title: Collect Xcode build-cache metrics
+  xcode_build_sim_bypass:
+    inputs:
+    - scheme: ShowcaseiOS
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            if ! command -v xcodegen >/dev/null 2>&1; then
+              brew install xcodegen
+            fi
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            xcodegen generate
+        title: xcodegen generate
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            cd "$BITRISE_SOURCE_DIR/projects/ios"
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh start build_step
+            /usr/bin/xcodebuild build \
+              -project ShowcaseiOS.xcodeproj -scheme "$scheme" \
+              -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO \
+              2>&1 | tee "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcodebuild-raw.log"
+            "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh stop build_step
+        title: xcodebuild via absolute path (bypasses any shim/alias)
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
+              --raw-log "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcodebuild-raw.log" \
+              --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"
+        title: Collect Xcode build-cache metrics
 workflows:
   and-b01__1_seed:
     envs:
@@ -965,6 +1074,243 @@ workflows:
     - bundle::deploy_metrics: {}
     summary: ✅ GOOD — pkg/mod + go-build cache keyed on go.sum
     title: GO-G01 · measure
+  ios-b01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-16.4.x
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — The activation step itself reports success, but Build Cache
+      for Xcode needs Xcode 26+ (it''s an Xcode compilation-caching feature) — on
+      an older stack it''s a silent no-op: no cache traffic, no speed-up.'
+    title: IOS-B01 · seed
+  ios-b01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-16.4.x
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — The activation step itself reports success, but Build Cache
+      for Xcode needs Xcode 26+ (it''s an Xcode compilation-caching feature) — on
+      an older stack it''s a silent no-op: no cache traffic, no speed-up.'
+    title: IOS-B01 · measure
+  ios-b03__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B03
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim_bypass:
+        inputs:
+        - scheme: ShowcaseiOS
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — The build calls /usr/bin/xcodebuild directly by absolute path
+      (simulating Tuist/fastlane/a custom script) instead of going through the official
+      xcode-build-for-simulator step — no cache traffic, even though activation ran
+      successfully right before it.
+    title: IOS-B03 · seed
+  ios-b03__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B03
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim_bypass:
+        inputs:
+        - scheme: ShowcaseiOS
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — The build calls /usr/bin/xcodebuild directly by absolute path
+      (simulating Tuist/fastlane/a custom script) instead of going through the official
+      xcode-build-for-simulator step — no cache traffic, even though activation ran
+      successfully right before it.
+    title: IOS-B03 · measure
+  ios-b04__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B04
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+            OTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Every Swift compile unit misses the cache on every single build,
+      because the flags passed to the Swift compiler are never the same twice.
+    title: IOS-B04 · seed
+  ios-b04__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B04
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+            OTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Every Swift compile unit misses the cache on every single build,
+      because the flags passed to the Swift compiler are never the same twice.
+    title: IOS-B04 · measure
+  ios-b05__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B05
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::xcode_build_cache: {}
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — Same as IOS-B01 for that build: the activation step is green,
+      but it ran after xcode-build-for-simulator, so that build got zero benefit from
+      it.'
+    title: IOS-B05 · seed
+  ios-b05__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-B05
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::xcode_build_cache: {}
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — Same as IOS-B01 for that build: the activation step is green,
+      but it ran after xcode-build-for-simulator, so that build got zero benefit from
+      it.'
+    title: IOS-B05 · measure
+  ios-g01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-G01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — Correct setup (Xcode 26+, simulator build)
+    title: IOS-G01 · seed
+  ios-g01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: IOS-G01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: ios
+    meta:
+      bitrise.io:
+        stack: osx-xcode-latest-stable
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::xcode_build_cache: {}
+    - bundle::xcode_build_sim:
+        inputs:
+        - scheme: ShowcaseiOS
+        - xcconfig_content: |-
+            CODE_SIGNING_ALLOWED=NO
+            COMPILER_INDEX_STORE_ENABLE=NO
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — Correct setup (Xcode 26+, simulator build)
+    title: IOS-G01 · measure
   mvn-b01__1_seed:
     envs:
     - SHOWCASE_SCENARIO_ID: MVN-B01
@@ -1708,9 +2054,11 @@ workflows:
         - name: bundle
     - bundle::collect_metrics: {}
     - bundle::deploy_metrics: {}
-    summary: ❌ BAD — The nokogiri native gem compiled on Linux is restored into a
-      macOS build; it's unusable there, so bundle install has to detect the failure
-      and reinstall from scratch rather than actually benefiting from the restore.
+    summary: ❌ BAD — The Linux-built archive genuinely matches the cache key on the
+      macOS measure build ('Exact hit'), but restore-cache@3.0.2 fails outright extracting
+      it onto this macOS stack ('Read-only file system') — a more dramatic real-world
+      failure mode than the hypothesized subtler ABI mismatch. The step failure doesn't
+      fail the workflow; the build falls through to a clean bundle install.
     title: RB-B01 · seed
   rb-b01__2_measure:
     envs:
@@ -1740,9 +2088,11 @@ workflows:
         - name: bundle
     - bundle::collect_metrics: {}
     - bundle::deploy_metrics: {}
-    summary: ❌ BAD — The nokogiri native gem compiled on Linux is restored into a
-      macOS build; it's unusable there, so bundle install has to detect the failure
-      and reinstall from scratch rather than actually benefiting from the restore.
+    summary: ❌ BAD — The Linux-built archive genuinely matches the cache key on the
+      macOS measure build ('Exact hit'), but restore-cache@3.0.2 fails outright extracting
+      it onto this macOS stack ('Read-only file system') — a more dramatic real-world
+      failure mode than the hypothesized subtler ABI mismatch. The step failure doesn't
+      fail the workflow; the build falls through to a clean bundle install.
     title: RB-B01 · measure
   rb-b02__1_seed:
     envs:
@@ -1771,10 +2121,11 @@ workflows:
         - name: bundle
     - bundle::collect_metrics: {}
     - bundle::deploy_metrics: {}
-    summary: ❌ BAD — Gems restore under a matching key (same OS, same Gemfile.lock)
-      but were compiled for Ruby 3.2.2's native extension ABI; running them under
-      Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather
-      than genuinely reusing the cache.
+    summary: ❌ BAD — Restore reports an exact hit (confirmed on real infra, build
+      27) and the build 'looks' fine -- no error -- but bundle install silently recompiles
+      nokogiri from scratch because Bundler installs native extensions under a Ruby-ABI-versioned
+      path, costing ~2.7 minutes vs ~13 seconds for a matching-version run. Almost
+      none of the cache's benefit is realized despite the exact hit.
     title: RB-B02 · seed
   rb-b02__2_measure:
     envs:
@@ -1804,10 +2155,11 @@ workflows:
         - name: bundle
     - bundle::collect_metrics: {}
     - bundle::deploy_metrics: {}
-    summary: ❌ BAD — Gems restore under a matching key (same OS, same Gemfile.lock)
-      but were compiled for Ruby 3.2.2's native extension ABI; running them under
-      Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather
-      than genuinely reusing the cache.
+    summary: ❌ BAD — Restore reports an exact hit (confirmed on real infra, build
+      27) and the build 'looks' fine -- no error -- but bundle install silently recompiles
+      nokogiri from scratch because Bundler installs native extensions under a Ruby-ABI-versioned
+      path, costing ~2.7 minutes vs ~13 seconds for a matching-version run. Almost
+      none of the cache's benefit is realized despite the exact hit.
     title: RB-B02 · measure
   rb-g01__1_seed:
     envs:
@@ -1884,6 +2236,14 @@ workflows:
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-go
+  report_ios:
+    envs:
+    - SHOWCASE_STACK: ios
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::report: {}
+    summary: Renders the HTML/Markdown report and runs assertions for this stack.
+    title: Report · showcase-ios
   report_jvm-maven:
     envs:
     - SHOWCASE_STACK: jvm-maven

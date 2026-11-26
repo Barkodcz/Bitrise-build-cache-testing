@@ -306,6 +306,42 @@ def ruby_steps(scn, phase):
     return steps, extra_envs
 
 
+def ios_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    activation = overrides.pop("activation", "before")  # before | after | none
+    build_mode = overrides.pop("build_mode", "official")  # official | bypass
+    volatile_flag = overrides.pop("volatile_flag", "false") == "true"
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"activation", "build_mode", "volatile_flag", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    cache_step = {"bundle::xcode_build_cache": {}}
+
+    if build_mode == "bypass":
+        build_step = {"bundle::xcode_build_sim_bypass": {"inputs": [{"scheme": "ShowcaseiOS"}]}}
+    else:
+        xcconfig_lines = "CODE_SIGNING_ALLOWED=NO\nCOMPILER_INDEX_STORE_ENABLE=NO"
+        if volatile_flag:
+            xcconfig_lines += "\nOTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)"
+        build_step = {"bundle::xcode_build_sim": {"inputs": [{"scheme": "ShowcaseiOS"}, {"xcconfig_content": xcconfig_lines}]}}
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    if activation != "none" and activation != "after":
+        steps.append(cache_step)
+    steps.append(build_step)
+    if activation == "after":
+        steps.append(cache_step)
+
+    steps += [{"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}}]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
@@ -314,6 +350,7 @@ STACK_BUILDERS = {
     "python": python_steps,
     "jvm-maven": maven_steps,
     "ruby": ruby_steps,
+    "ios": ios_steps,
 }
 
 

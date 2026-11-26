@@ -9,7 +9,11 @@ stacks:
     stack: ubuntu-noble-24.04-bitrise-2025-android
     machine_type_id: null
   xcode-26:
-    stack: "[VERIFY-NOT-YET-RESOLVED-xcode-26]"
+    # Resolved 2026-11-26: osx-xcode-latest-stable is "stable" status for this workspace and
+    # currently tracks Xcode 27.x — well past the Xcode 26+ requirement for Build Cache for Xcode
+    # (spec §3.4). Using "latest-stable" rather than pinning an exact 26.x point release keeps this
+    # from going stale as Bitrise rolls stacks forward.
+    stack: osx-xcode-latest-stable
     machine_type_id: null
   xcode-16-legacy:
     stack: osx-xcode-16.4.x

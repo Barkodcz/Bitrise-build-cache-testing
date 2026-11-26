@@ -58,6 +58,7 @@ def main():
     }
 
     gradle = load_json(os.path.join(frag_dir, "gradle.json"))
+    xcode = load_json(os.path.join(frag_dir, "xcode.json"))
     remote_cache = None
     if gradle is not None:
         hits = gradle.get("from_cache", 0)
@@ -76,8 +77,27 @@ def main():
         }
         notes.append("byte traffic (bytes_downloaded/uploaded) not yet parsed from the Build Cache "
                       "step's own summary output — see tools/metrics/gradle/ in verified-facts.md")
+    elif xcode is not None:
+        hits = xcode.get("proxy_hits")
+        proxy_total = xcode.get("proxy_total")
+        remote_cache = {
+            "tool": "xcode",
+            "hits": hits,
+            "misses": (proxy_total - hits) if (hits is not None and proxy_total is not None) else None,
+            "hit_rate": (hits / proxy_total) if (hits and proxy_total) else None,
+            "bytes_downloaded": None,
+            "bytes_uploaded": xcode.get("uploaded_blobs"),
+            "download_upload_ratio": None,
+            "proxy_total": proxy_total,
+            "engaged": bool(xcode.get("set_session_seen")),
+        }
+        if not xcode.get("found_any_signal"):
+            notes.append("no 'Proxy blob stats'/'SetSession' lines found in the raw xcodebuild log — "
+                         "either the build cache didn't engage, or the log line format differs from "
+                         "what tools/metrics/xcode_parse.py expects (spec §8.2 'Xcode' row is marked "
+                         "[VERIFY]); see docs/reference/verified-facts.md")
     else:
-        notes.append("no gradle.json fragment found (not a Gradle scenario, or build failed before buildFinished)")
+        notes.append("no gradle.json/xcode.json fragment found (not a Gradle/Xcode scenario, or build failed early)")
 
     key_based = []
     if os.path.isdir(frag_dir):
@@ -112,7 +132,7 @@ def main():
         "durations_s": durations_s,
         "remote_cache": remote_cache,
         "gradle": gradle,
-        "xcode": None,
+        "xcode": xcode,
         "bazel": None,
         "key_based": key_based,
         "test_distribution": None,
