@@ -18,9 +18,11 @@ include:
 - path: .bitrise/workflows/rust.yml
 - path: .bitrise/workflows/python.yml
 - path: .bitrise/workflows/jvm-maven.yml
+- path: .bitrise/workflows/ruby.yml
 - path: .bitrise/pipelines/android.yml
 - path: .bitrise/pipelines/node.yml
 - path: .bitrise/pipelines/go.yml
 - path: .bitrise/pipelines/rust.yml
 - path: .bitrise/pipelines/python.yml
 - path: .bitrise/pipelines/jvm-maven.yml
+- path: .bitrise/pipelines/ruby.yml

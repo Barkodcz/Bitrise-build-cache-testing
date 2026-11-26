@@ -14,3 +14,10 @@ stacks:
   xcode-16-legacy:
     stack: osx-xcode-16.4.x
     machine_type_id: null
+  macos-default:
+    # Verified 2026-11-26 (docs/reference/verified-facts.md): osx-xcode-latest-stable is a real,
+    # stable-status stack for this workspace — used for RB-B01's macOS measure leg, where the
+    # specific Xcode version doesn't matter (no Xcode build involved), only that it's a real,
+    # low-maintenance macOS stack, mirroring linux-default's ubuntu-latest-stable-adjacent choice.
+    stack: osx-xcode-latest-stable
+    machine_type_id: null

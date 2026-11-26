@@ -2,9 +2,8 @@
 # Each bundle pairs the official cache step with a `keybased_record.sh` call so the scenario
 # workflow itself only ever references `bundle::*` (spec §7.1's "raw step in a scenario = a smell").
 # `node_install` is the npm-specific wrapper used by the Node scenarios (scenarios/catalog.yml
-# NODE-*); `go_build`/`rust_build`/`python_install`/`maven_build` are the Go/Rust/Python/Maven
-# wrappers (GO-*/RS-*/PY-*/MVN-*). Ruby's wrapper is not implemented yet (status: planned) — add
-# `ruby_install` here, following the same shape, when that stack moves to `status: implemented`.
+# NODE-*); `go_build`/`rust_build`/`python_install`/`maven_build`/`ruby_install` are the
+# Go/Rust/Python/Maven/Ruby wrappers (GO-*/RS-*/PY-*/MVN-*/RB-*).
 step_bundles:
   kb_restore:
     inputs:
@@ -122,3 +121,20 @@ step_bundles:
             #!/usr/bin/env bash
             set -euo pipefail
             "$BITRISE_SOURCE_DIR"/tools/run-maven.sh
+
+  # `bundle install` + a smoke-test script against projects/ruby, via tools/run-ruby.sh (spec
+  # §6.7). Installs the pinned `ruby_version` from scratch via rbenv (unless "system") so seed and
+  # measure can genuinely run different real Ruby versions for RB-B02. RB-B01's "restored native
+  # gem from the wrong OS is unusable" symptom is caught and recovered from INSIDE
+  # tools/run-ruby.sh, never left to hard-fail this step (spec §0.6).
+  ruby_install:
+    inputs:
+    - ruby_version: "system"
+    steps:
+    - script@1.2.1:
+        title: "bundle install + smoke test"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-ruby.sh "$ruby_version"

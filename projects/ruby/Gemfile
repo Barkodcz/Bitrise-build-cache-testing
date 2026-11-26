@@ -1,0 +1,5 @@
+source "https://rubygems.org"
+
+# A real native-extension gem (spec §6.7) so `bundle install` has real compiled content worth
+# caching, and so RB-B01's "restored native gem from the wrong OS" symptom is meaningful.
+gem "nokogiri", "~> 1.16"

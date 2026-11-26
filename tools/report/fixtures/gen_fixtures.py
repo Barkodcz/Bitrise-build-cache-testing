@@ -107,4 +107,10 @@ kb_fixture("MVN-G01", restore_hit="exact", stack="jvm-maven", name="m2-repo", se
 kb_fixture("MVN-B01", restore_hit="exact", stack="jvm-maven", name="m2-repo", seed_dur=12, measure_dur=11)
 kb_fixture("MVN-B02", restore_hit="exact", stack="jvm-maven", name="m2-repo", seed_dur=12, measure_dur=5)
 
+# Ruby: RB-G01 good (clean hit); RB-B01/RB-B02 bad (restore reports a hit, but the underlying
+# native gem is unusable -- caught and recovered inside tools/run-ruby.sh, not a hard failure).
+kb_fixture("RB-G01", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=5)
+kb_fixture("RB-B01", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=22)
+kb_fixture("RB-B02", restore_hit="exact", stack="ruby", name="bundle", seed_dur=25, measure_dur=22)
+
 print("fixtures written")

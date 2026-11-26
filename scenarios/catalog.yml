@@ -406,9 +406,59 @@ scenarios:
     field_evidence: "Wastes upload time/bandwidth on every single build."
 
   # ───────────────────────────── Ruby / CocoaPods / fastlane — all planned ─────────────────────────────
-  - { id: RB-G01, stack: ruby, title: "vendor/bundle keyed on Gemfile.lock + {{ .OS }}", verdict: good, status: planned, doc: docs/scenarios/ruby/RB-G01.md }
-  - { id: RB-B01, stack: ruby, title: "Key without {{ .OS }} shared Linux<->macOS", verdict: bad, status: planned, doc: docs/scenarios/ruby/RB-B01.md, symptom: "Restored native gem (nokogiri) is unusable; bundle install recompiles (caught and recorded, not a hard failure).", root_cause: "Seed on Linux, measure on macOS, same cache key with no OS discriminator.", fix_ref: RB-G01 }
-  - { id: RB-B02, stack: ruby, title: "Ruby version drift", verdict: bad, status: planned, doc: docs/scenarios/ruby/RB-B02.md, symptom: "Gems reinstall despite an exact key hit.", root_cause: "Seed on Ruby 3.2, measure on Ruby 3.3; .ruby-version not pinned, version not in the key.", fix_ref: RB-G01 }
+  - id: RB-G01
+    stack: ruby
+    title: "vendor/bundle keyed on Gemfile.lock + {{ .OS }}"
+    verdict: good
+    status: implemented
+    pattern_tags: [exact-key-match, os-scoped-key]
+    seed: { bundle_overrides: { ruby_version: "system", include_os_in_key: "true" } }
+    measure: { bundle_overrides: { ruby_version: "system", include_os_in_key: "true" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/ruby/RB-G01.md
+    field_evidence: "Baseline every RB-B* scenario is compared against."
+
+  - id: RB-B01
+    stack: ruby
+    title: "Key without {{ .OS }} shared Linux<->macOS"
+    verdict: bad
+    status: implemented
+    pattern_tags: [missing-os-in-key]
+    seed: { bundle_overrides: { ruby_version: "system", include_os_in_key: "false" }, stack_id: linux-default }
+    measure: { bundle_overrides: { ruby_version: "system", include_os_in_key: "false" }, stack_id: macos-default }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "The nokogiri native gem compiled on Linux is restored into a macOS build; it's unusable there, so bundle install has to detect the failure and reinstall from scratch rather than actually benefiting from the restore."
+    root_cause: 'Cache key omits {{ .OS }}, so a Linux-built archive and a macOS build share the same cache slot even though native extension binaries are platform-specific.'
+    fix_ref: RB-G01
+    doc: docs/scenarios/ruby/RB-B01.md
+    field_evidence: "The classic 'shared cache key across OSes' mistake for any stack with native/compiled dependencies — the symptom here is caught and recovered from inside tools/run-ruby.sh rather than hard-failing the build (spec §0.6)."
+
+  - id: RB-B02
+    stack: ruby
+    title: "Ruby version drift"
+    verdict: bad
+    status: implemented
+    pattern_tags: [toolchain-drift]
+    seed: { bundle_overrides: { ruby_version: "3.2.2", include_os_in_key: "true" } }
+    measure: { bundle_overrides: { ruby_version: "3.3.0", include_os_in_key: "true" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "Gems restore under a matching key (same OS, same Gemfile.lock) but were compiled for Ruby 3.2.2's native extension ABI; running them under Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather than genuinely reusing the cache."
+    root_cause: "Seed builds with Ruby 3.2.2, measure with Ruby 3.3.0 — the cache key includes the OS but not the Ruby version, so a toolchain change doesn't bust the key."
+    fix_ref: RB-G01
+    doc: docs/scenarios/ruby/RB-B02.md
+    field_evidence: "Pinning the Ruby version (a .ruby-version file) is necessary but not sufficient — the cache key itself should include the version too, the same lesson GO-B02/RS-B02 teach for Go/Rust."
 
   # ───────────────────────────── Go ─────────────────────────────
   - id: GO-G01

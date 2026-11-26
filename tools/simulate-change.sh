@@ -128,6 +128,18 @@ PY
       *) echo "unknown change kind: $kind" >&2; exit 1 ;;
     esac
     ;;
+  ruby)
+    case "$kind" in
+      none) ;;
+      leaf|core)
+        f="$root/projects/ruby/lib/leaf.rb"
+        sed -i.bak "s/\"leaf-v[0-9]*\"/\"leaf-v$(date +%s | tail -c 4)\"/" "$f" 2>/dev/null || \
+          echo "# showcase-leaf-change $(date +%s)" >> "$f"
+        rm -f "$f.bak"
+        ;;
+      *) echo "unknown change kind: $kind" >&2; exit 1 ;;
+    esac
+    ;;
   *)
     echo "simulate-change.sh: stack '$stack' not implemented yet (status: planned in scenarios/catalog.yml)" >&2
     ;;

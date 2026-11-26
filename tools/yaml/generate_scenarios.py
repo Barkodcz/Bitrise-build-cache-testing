@@ -279,6 +279,33 @@ def maven_steps(scn, phase):
     return steps, extra_envs
 
 
+def ruby_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    ruby_version = overrides.pop("ruby_version", "system")
+    include_os = overrides.pop("include_os_in_key", "true") == "true"
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"ruby_version", "include_os_in_key", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    os_part = '-{{ .OS }}' if include_os else ''
+    key = f'bundle{os_part}-{{{{ getenv "SHOWCASE_NS" }}}}-{{{{ checksum "projects/ruby/Gemfile.lock" }}}}'
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    steps += [
+        {"bundle::kb_restore": {"inputs": [{"key": key}, {"name": "bundle"}]}},
+        {"bundle::ruby_install": {"inputs": [{"ruby_version": ruby_version}]}},
+        {"bundle::kb_save": {"inputs": [{"key": key}, {"paths": "projects/ruby/vendor/bundle"}, {"name": "bundle"}]}},
+        {"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}},
+    ]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
@@ -286,6 +313,7 @@ STACK_BUILDERS = {
     "rust": rust_steps,
     "python": python_steps,
     "jvm-maven": maven_steps,
+    "ruby": ruby_steps,
 }
 
 
@@ -293,7 +321,9 @@ def build_workflow(scn, phase, stacks_cfg):
     builder = STACK_BUILDERS[scn["stack"]]
     steps, extra_envs = builder(scn, phase)
 
-    logical_stack = scn.get("stack_id", "linux-default")
+    # Per-phase stack_id override (e.g. RB-B01 runs its seed on Linux and its measure on macOS) —
+    # falls back to the scenario-level stack_id, which itself falls back to linux-default.
+    logical_stack = scn.get(phase, {}).get("stack_id") or scn.get("stack_id", "linux-default")
     stack_entry = stacks_cfg["stacks"].get(logical_stack, stacks_cfg["stacks"]["linux-default"])
 
     wf = {
