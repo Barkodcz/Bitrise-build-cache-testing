@@ -598,9 +598,59 @@ scenarios:
     field_evidence: "The same 'too-broad path' mistake as AND-B11/IOS-B09 — caching a build output directory instead of the tool's own dependency cache."
 
   # ───────────────────────────── Java / Maven — all planned ─────────────────────────────
-  - { id: MVN-G01, stack: jvm-maven, title: "~/.m2/repository keyed on **/pom.xml", verdict: good, status: planned, doc: docs/scenarios/jvm-maven/MVN-G01.md }
-  - { id: MVN-B01, stack: jvm-maven, title: "Key on root pom.xml only, change in a submodule", verdict: bad, status: planned, doc: docs/scenarios/jvm-maven/MVN-B01.md, symptom: "Stale cache restored; Maven downloads anyway.", root_cause: "Key glob only checksums the root pom.xml.", fix_ref: MVN-G01 }
-  - { id: MVN-B02, stack: jvm-maven, title: "Caching target/", verdict: bad, status: planned, doc: docs/scenarios/jvm-maven/MVN-B02.md, symptom: "Large archive, no correctness benefit.", root_cause: "target/ build output cached instead of just ~/.m2/repository.", fix_ref: MVN-G01 }
+  - id: MVN-G01
+    stack: jvm-maven
+    title: "~/.m2/repository keyed on **/pom.xml"
+    verdict: good
+    status: implemented
+    pattern_tags: [exact-key-match, lean-cache-path]
+    seed: { bundle_overrides: { key_glob: "projects/maven/**/pom.xml" } }
+    measure: { bundle_overrides: { key_glob: "projects/maven/**/pom.xml" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/jvm-maven/MVN-G01.md
+    field_evidence: "Baseline every MVN-B* scenario is compared against."
+
+  - id: MVN-B01
+    stack: jvm-maven
+    title: "Key on root pom.xml only, change in a submodule"
+    verdict: bad
+    status: implemented
+    pattern_tags: [under-scoped-key-glob]
+    seed: { bundle_overrides: { key_glob: "projects/maven/pom.xml" } }
+    measure: { bundle_overrides: { key_glob: "projects/maven/pom.xml", change_kind: deps } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "leaf/pom.xml's commons-io version is bumped (a real dependency change), but the cache key — checksum of only the root pom.xml — never changes, so the stale cache restores under the same key and Maven has to download the new dependency anyway."
+    root_cause: 'restore/save-cache key only checksums "projects/maven/pom.xml" (the root), not every module pom.xml.'
+    fix_ref: MVN-G01
+    doc: docs/scenarios/jvm-maven/MVN-B01.md
+    field_evidence: "The exact mechanism spec §6.11 warns about — a key glob that doesn't cover every module's pom.xml misses dependency changes made in a submodule."
+
+  - id: MVN-B02
+    stack: jvm-maven
+    title: "Caching target/"
+    verdict: bad
+    status: implemented
+    pattern_tags: [too-broad-cache-path]
+    seed: { bundle_overrides: { key_glob: "projects/maven/**/pom.xml", cache_target_dirs: "true" } }
+    measure: { bundle_overrides: { key_glob: "projects/maven/**/pom.xml", cache_target_dirs: "true" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.saved: "== true"
+    symptom: "A markedly larger archive than MVN-G01's ~/.m2/repository-only archive for the same dependency set, with no correctness or speed benefit — target/ is cheap to rebuild and doesn't need to be cached."
+    root_cause: "The cache stores core/target and leaf/target (compiled .class files, built jars) in addition to ~/.m2/repository."
+    fix_ref: MVN-G01
+    doc: docs/scenarios/jvm-maven/MVN-B02.md
+    field_evidence: "The same 'too-broad path' mistake as AND-B11/IOS-B09/PY-B02 — caching a build output directory instead of just the tool's own dependency cache."
 
   # ───────────────────────────── Cross-cutting (showcase-key-based / showcase-smoke) — all planned ─────────────────────────────
   - { id: X-B01, stack: cross-cutting, title: "Cache step before git-clone", verdict: bad, status: planned, doc: docs/scenarios/cross-cutting/X-B01.md, symptom: "Restore lands in a directory that's later wiped by checkout; checksum of a missing file yields a constant key.", root_cause: "restore-cache step ordered before git-clone.", fix_ref: null }

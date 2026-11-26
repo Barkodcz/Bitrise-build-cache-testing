@@ -246,12 +246,46 @@ def python_steps(scn, phase):
     return steps, extra_envs
 
 
+def _mvn_key(glob):
+    return f'{{{{ getenv "SHOWCASE_NS" }}}}-{{{{ .OS }}}}-{{{{ checksum "{glob}" }}}}'
+
+
+def maven_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    key_glob = overrides.pop("key_glob", "projects/maven/**/pom.xml")
+    cache_target_dirs = overrides.pop("cache_target_dirs", "false") == "true"
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"key_glob", "cache_target_dirs", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    key = f'm2-{_mvn_key(key_glob)}'
+    paths = "~/.m2/repository"
+    if cache_target_dirs:
+        paths += "\nprojects/maven/core/target\nprojects/maven/leaf/target"
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    steps += [
+        {"bundle::kb_restore": {"inputs": [{"key": key}, {"name": "m2-repo"}]}},
+        {"bundle::maven_build": {}},
+        {"bundle::kb_save": {"inputs": [{"key": key}, {"paths": paths}, {"name": "m2-repo"}]}},
+        {"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}},
+    ]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
     "go": go_steps,
     "rust": rust_steps,
     "python": python_steps,
+    "jvm-maven": maven_steps,
 }
 
 

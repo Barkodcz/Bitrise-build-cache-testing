@@ -101,4 +101,10 @@ kb_fixture("PY-G02", restore_hit="exact", stack="python", name="poetry-cache", s
 kb_fixture("PY-B01", restore_hit="false", stack="python", name="poetry-cache", seed_dur=10, measure_dur=10)
 kb_fixture("PY-B02", restore_hit="exact", stack="python", name="pip-venv", seed_dur=10, measure_dur=9)
 
+# Maven: MVN-G01 good (clean hit); MVN-B01 bad (stale "hit", key never saw the submodule's dep
+# change); MVN-B02 bad (saved, just a bigger archive).
+kb_fixture("MVN-G01", restore_hit="exact", stack="jvm-maven", name="m2-repo", seed_dur=12, measure_dur=4)
+kb_fixture("MVN-B01", restore_hit="exact", stack="jvm-maven", name="m2-repo", seed_dur=12, measure_dur=11)
+kb_fixture("MVN-B02", restore_hit="exact", stack="jvm-maven", name="m2-repo", seed_dur=12, measure_dur=5)
+
 print("fixtures written")

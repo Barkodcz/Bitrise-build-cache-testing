@@ -71,6 +71,26 @@ pipelines:
         - go-b01__2_measure
         - go-b02__2_measure
         should_always_run: workflow
+  showcase-jvm-maven:
+    workflows:
+      mvn-b01__1_seed: {}
+      mvn-b01__2_measure:
+        depends_on:
+        - mvn-b01__1_seed
+      mvn-b02__1_seed: {}
+      mvn-b02__2_measure:
+        depends_on:
+        - mvn-b02__1_seed
+      mvn-g01__1_seed: {}
+      mvn-g01__2_measure:
+        depends_on:
+        - mvn-g01__1_seed
+      report_jvm-maven:
+        depends_on:
+        - mvn-g01__2_measure
+        - mvn-b01__2_measure
+        - mvn-b02__2_measure
+        should_always_run: workflow
   showcase-node:
     workflows:
       node-b01__1_seed: {}
@@ -259,6 +279,15 @@ step_bundles:
             set -euo pipefail
             "$BITRISE_SOURCE_DIR"/tools/metrics/keybased_record.sh record-save "$name" '$key' '$paths'
         title: Record key-based cache save outcome
+  maven_build:
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-maven.sh
+        title: mvn test
   node_install:
     inputs:
     - working_dir: $BITRISE_SOURCE_DIR/projects/node
@@ -905,6 +934,189 @@ workflows:
     - bundle::deploy_metrics: {}
     summary: ✅ GOOD — pkg/mod + go-build cache keyed on go.sum
     title: GO-G01 · measure
+  mvn-b01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-B01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/pom.xml"
+            }}
+        - paths: ~/.m2/repository
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — leaf/pom.xml's commons-io version is bumped (a real dependency
+      change), but the cache key — checksum of only the root pom.xml — never changes,
+      so the stale cache restores under the same key and Maven has to download the
+      new dependency anyway.
+    title: MVN-B01 · seed
+  mvn-b01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-B01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change:
+        inputs:
+        - kind: deps
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/pom.xml"
+            }}
+        - paths: ~/.m2/repository
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — leaf/pom.xml's commons-io version is bumped (a real dependency
+      change), but the cache key — checksum of only the root pom.xml — never changes,
+      so the stale cache restores under the same key and Maven has to download the
+      new dependency anyway.
+    title: MVN-B01 · measure
+  mvn-b02__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-B02
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - paths: |-
+            ~/.m2/repository
+            projects/maven/core/target
+            projects/maven/leaf/target
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — A markedly larger archive than MVN-G01's ~/.m2/repository-only
+      archive for the same dependency set, with no correctness or speed benefit —
+      target/ is cheap to rebuild and doesn't need to be cached.
+    title: MVN-B02 · seed
+  mvn-b02__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-B02
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - paths: |-
+            ~/.m2/repository
+            projects/maven/core/target
+            projects/maven/leaf/target
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — A markedly larger archive than MVN-G01's ~/.m2/repository-only
+      archive for the same dependency set, with no correctness or speed benefit —
+      target/ is cheap to rebuild and doesn't need to be cached.
+    title: MVN-B02 · measure
+  mvn-g01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-G01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - paths: ~/.m2/repository
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — ~/.m2/repository keyed on **/pom.xml
+    title: MVN-G01 · seed
+  mvn-g01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: MVN-G01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: jvm-maven
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - name: m2-repo
+    - bundle::maven_build: {}
+    - bundle::kb_save:
+        inputs:
+        - key: m2-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/maven/**/pom.xml"
+            }}
+        - paths: ~/.m2/repository
+        - name: m2-repo
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — ~/.m2/repository keyed on **/pom.xml
+    title: MVN-G01 · measure
   node-b01__1_seed:
     envs:
     - SHOWCASE_SCENARIO_ID: NODE-B01
@@ -1454,6 +1666,14 @@ workflows:
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-go
+  report_jvm-maven:
+    envs:
+    - SHOWCASE_STACK: jvm-maven
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::report: {}
+    summary: Renders the HTML/Markdown report and runs assertions for this stack.
+    title: Report · showcase-jvm-maven
   report_node:
     envs:
     - SHOWCASE_STACK: node

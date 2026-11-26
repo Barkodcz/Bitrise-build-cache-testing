@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "scenario_id": "MVN-B01",
+  "stack": "jvm-maven",
+  "phase": "seed",
+  "verdict_expected": null,
+  "run": {
+    "pipeline_id": "fixture",
+    "build_slug": "fixture",
+    "workflow": "mvn-b01__1_seed",
+    "stack_id": "ubuntu-noble-24.04-bitrise-2025-android",
+    "machine_type": null,
+    "datacenter": "ams",
+    "isolation": "isolated",
+    "namespace": "fixture-MVN-B01",
+    "change_kind": "leaf",
+    "started_at": "2026-11-26T10:00:00Z"
+  },
+  "durations_s": {
+    "total_workflow": 22,
+    "build_step": null,
+    "cache_restore": null,
+    "cache_save": null,
+    "dependency_install": 12
+  },
+  "remote_cache": null,
+  "gradle": null,
+  "xcode": null,
+  "bazel": null,
+  "key_based": [
+    {
+      "name": "m2-repo",
+      "key": "m2-repo-...",
+      "restore_hit": "false",
+      "archive_bytes": 50000000,
+      "restore_s": 1.0,
+      "save_s": 5.0,
+      "saved": true
+    }
+  ],
+  "test_distribution": null,
+  "notes": [],
+  "raw_logs": []
+}

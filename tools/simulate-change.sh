@@ -99,6 +99,35 @@ PY
       *) echo "unknown change kind: $kind" >&2; exit 1 ;;
     esac
     ;;
+  maven)
+    case "$kind" in
+      none) ;;
+      leaf|core)
+        f="$root/projects/maven/leaf/src/main/java/com/showcase/leaf/Leaf.java"
+        sed -i.bak "s/\"leaf-v[0-9]*\"/\"leaf-v$(date +%s | tail -c 4)\"/" "$f" 2>/dev/null || \
+          echo "// showcase-leaf-change $(date +%s)" >> "$f"
+        rm -f "$f.bak"
+        ;;
+      deps)
+        # Bump leaf's own commons-io version (declared only in leaf/pom.xml, never the root
+        # pom.xml) to a different real published release -- exactly the dependency change
+        # MVN-B01's root-pom-only key fails to notice.
+        f="$root/projects/maven/leaf/pom.xml"
+        python3 - "$f" <<'PY'
+import re, sys
+p = sys.argv[1]
+text = open(p).read()
+text = re.sub(
+    r"(<artifactId>commons-io</artifactId>\s*<version>)[0-9.]+(</version>)",
+    r"\g<1>2.16.1\g<2>",
+    text,
+)
+open(p, "w").write(text)
+PY
+        ;;
+      *) echo "unknown change kind: $kind" >&2; exit 1 ;;
+    esac
+    ;;
   *)
     echo "simulate-change.sh: stack '$stack' not implemented yet (status: planned in scenarios/catalog.yml)" >&2
     ;;
