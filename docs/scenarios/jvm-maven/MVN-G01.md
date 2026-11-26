@@ -31,8 +31,13 @@ glob in the key checksums all three, so a dependency change in *any* module bust
 `MVN-B01` for what happens when the glob only covers the root.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run.
+- **Real captured log** (`mvn-g01__2_measure`, build 25/26, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=m2-repo hit=exact
+  run-maven.sh: using Apache Maven 3.9.9 (8e8579a9e76f7d015ee5ec7bfcdc97d260186937)
+  ```
+- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run — confirmed `exact`
+  on the first real run.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline. `MVN-B01` and `MVN-B02` both point back here.

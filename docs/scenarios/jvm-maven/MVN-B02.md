@@ -26,9 +26,14 @@ cached paths include the two modules' build output directories:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.saved == true`, with a markedly larger `archive_bytes` than `MVN-G01`'s
-  `~/.m2/repository`-only archive for the same dependency set.
+- **Real captured log** (`mvn-b02__2_measure`, build 25/26, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=m2-repo hit=exact
+  ```
+  — restores and saves successfully (no key mismatch here); the symptom is archive size, not hit
+  rate. (`archive_bytes` is unfortunately not reliably collected yet on real infra — see
+  `docs/reference/verified-facts.md` — so this page can't yet show a real before/after byte count.)
+- Metrics: `key_based.saved == true`.
 
 ## Why it happens
 `~/.m2/repository` (downloaded/built dependency jars) is what makes repeated builds fast — it's

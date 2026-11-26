@@ -35,7 +35,17 @@ Note the key is **identical** in both phases — `projects/maven/pom.xml` (the p
 never changes; only `projects/maven/leaf/pom.xml` does.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`mvn-b01__2_measure`, build 26, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  simulate-change: stack=jvm-maven kind=deps applied
+  keybased_record: restore name=m2-repo hit=exact
+  [INFO] Downloading from central: https://repo.maven.apache.org/maven2/commons-io/commons-io/2.16.1/commons-io-2.16.1.pom
+  [INFO] Downloaded from central: .../commons-io-2.16.1.pom (20 kB at 96 kB/s)
+  [INFO] Downloading from central: https://repo.maven.apache.org/maven2/commons-io/commons-io/2.16.1/commons-io-2.16.1.jar
+  [INFO] Downloaded from central: .../commons-io-2.16.1.jar (509 kB at 11 MB/s)
+  ```
+  — exactly the symptom: `restore_hit=exact` (the stale key matched) *and* a fresh download of the
+  bumped dependency in the same build, because that dependency was never in the restored cache.
 - Metrics: `key_based.restore_hit` may report a hit (the literal key string matches — the root POM
   really didn't change), but the build still has to download `commons-io:2.16.1` since it wasn't in
   the restored `~/.m2/repository`.
