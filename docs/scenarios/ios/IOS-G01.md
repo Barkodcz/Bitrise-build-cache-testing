@@ -35,17 +35,19 @@ committed). No code signing is required — `xcode-build-for-simulator`'s own de
 already sets `CODE_SIGNING_ALLOWED=NO`.
 
 ## What you see
-- Log evidence (real, build 28): activation runs cleanly —
-  `✅ Bitrise Build Cache for Xcode activated` — then `xcode-build-for-simulator` succeeds
-  (`Archive Succeeded`). But right after activation, the log also shows:
-  `Bitrise Build Cache auto-activation skipped: workspace "0f453e706a6f6bb6" is not enabled for it`
-  and `All active build tools in baseline benchmark mode (xcode=baseline (cache disabled)): cache
-  disabled, analytics only`.
-- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — **not** because this
-  config is wrong, but because this workspace currently lacks the Build Cache for Xcode
-  entitlement, so every `IOS-*` scenario (including this GOOD baseline) runs in a cache-disabled
-  analytics-only mode. See `docs/reference/verified-facts.md` for the full finding; re-run once the
-  workspace is enabled to capture a real cache hit here.
+- Log evidence (real, build 30, after the workspace was enabled for Build Cache for Xcode): the
+  activation step's own `xcelerate-<uuid>.log` (deployed as a build artifact) ends with:
+  ```
+  Proxy blob stats: hits: 252 (103 MB) / total: 254 (99.21%). Uploaded blobs: 22 (280 kB)
+  Proxy KV stats: hits: 126 / total: 128 (98.44%). Uploaded KV blobs: 2.4 kB
+  Xcode task stats: hits: 126 / total: 128 (98.44%)
+  ```
+  A real 99.21% blob hit rate on the measure build.
+- Metrics (build 33, final clean run): `remote_cache.engaged == true`, `found_any_signal == true`.
+- Note: the Build Cache for Xcode telemetry lives in that dedicated `xcelerate-*.log`
+  file in `$BITRISE_DEPLOY_DIR`, not in xcodebuild's own text output — see
+  `docs/reference/verified-facts.md` for the full finding (this took two rounds of real-infra
+  debugging to pin down correctly).
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline. Every `IOS-B*` scenario's "How to fix it" section points back

@@ -29,17 +29,19 @@ steps:
 ```
 
 ## What you see
-- Log evidence (real, build 28): `xcode_version: 16.4`, activation step still prints
-  `✅ Bitrise Build Cache for Xcode activated` (no error, no version warning), then
-  `All active build tools in baseline benchmark mode (xcode=baseline (cache disabled)): cache
-  disabled, analytics only`.
-- Metrics: `remote_cache.engaged == false`, `found_any_signal == false`.
-- **Caveat found on this first real run**: this workspace currently lacks the Build Cache for
-  Xcode entitlement entirely (`docs/reference/verified-facts.md`), so `IOS-G01` shows the identical
-  `engaged == false` signature right now — this scenario's *intended* distinguishing factor (old
-  Xcode version) can't yet be isolated from that workspace-level gate. The assertion still passes
-  (for the right surface value), but doesn't yet prove the Xcode-version-specific symptom on its
-  own; re-verify once the workspace entitlement is granted.
+- Log evidence (real, build 32): `xcode_version: 16.4`. Activation step still prints
+  `✅ Bitrise Build Cache for Xcode activated` and `SetSession called` succeeds — no error, no
+  version warning anywhere. But the real `xcelerate-<uuid>.log` ends with:
+  ```
+  ** ARCHIVE SUCCEEDED **
+  Proxy blob stats: hits: 0 (0 B) / total: 0 (0.00%). Uploaded blobs: 0 (0 B)
+  ```
+  Zero compilation units were ever submitted to the remote cache, despite the successful handshake.
+- Metrics (build 33, final clean run): `remote_cache.engaged == false`, `found_any_signal == true`
+  (a stats line exists, it's just all-zero) — this distinction is exactly why `engaged` is computed
+  from `proxy_total > 0`, not from `set_session_seen` (see
+  `tools/metrics/merge_fragments.py`, fixed after this exact real result first produced a false
+  `engaged == true` and failed `report_ios`'s assertion on build 31).
 
 ## Why it happens
 Build Cache for Xcode relies on Xcode 26's own compilation-caching infrastructure

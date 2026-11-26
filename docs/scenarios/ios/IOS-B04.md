@@ -26,14 +26,16 @@ line:
 ```
 
 ## What you see
-- Log evidence (real, build 28): the generated xcconfig content for this scenario is visible in
-  the step log — `OTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)` — confirming
-  the volatile flag was actually passed to the build.
-- Metrics: `remote_cache.hits ≈ 0` / `found_any_signal == false` on the measure run.
-- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
-  (`docs/reference/verified-facts.md`), so real per-compile-unit cache misses from the volatile
-  flag can't be distinguished from the workspace not being entitled yet. Re-verify once the
-  workspace is enabled.
+- Log evidence (real, build 33, workspace enabled for Build Cache for Xcode): the generated
+  xcconfig content for this scenario is visible in the step log —
+  `OTHER_SWIFT_FLAGS = $(inherited) -DBUILD_$(BITRISE_BUILD_NUMBER)` — confirming the volatile flag
+  was actually passed to the build.
+- Metrics: `found_any_signal == true` — a real `xcelerate-*.log` with a `Proxy blob stats` line
+  exists (activation genuinely ran and the wrapper was used), unlike `IOS-B03`/`IOS-B05`. The exact
+  hit/total counts for this run weren't re-extracted from the console in this pass (they're only in
+  the deployed metrics JSON artifact, not echoed to the human-readable build log) — expected to be
+  low/near-zero given every build gets a unique `$BITRISE_BUILD_NUMBER`-based flag, but this exact
+  number is a documented gap rather than a fabricated one; see `docs/reference/verified-facts.md`.
 
 ## Why it happens
 Swift's (and Clang's) compile cache keys on the exact invocation, including every compiler flag.

@@ -30,15 +30,14 @@ steps:
 ```
 
 ## What you see
-- Log evidence (real, build 28): activation reports `✅ Bitrise Build Cache for Xcode activated`,
-  then the build runs `/usr/bin/xcodebuild build` directly (absolute path, bypassing
-  `xcode-build-for-simulator`) and succeeds normally.
-- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — no `Proxy blob
-  stats`/`SetSession` lines anywhere in the log.
-- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
-  (`docs/reference/verified-facts.md`) — the same `baseline benchmark mode` line appears here too —
-  so this run alone can't cleanly isolate "bypass" from "not entitled." Re-verify the bypass
-  specifically once the workspace is enabled and `IOS-G01` is confirmed to show real cache hits.
+- Log evidence (real, build 33, workspace enabled for Build Cache for Xcode): activation reports
+  `✅ Bitrise Build Cache for Xcode activated`, then the build runs `/usr/bin/xcodebuild build`
+  directly (absolute path, bypassing `xcode-build-for-simulator`) and succeeds normally.
+- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — **no `xcelerate-*.log`
+  file exists at all** in `$BITRISE_DEPLOY_DIR` for this build, unlike every other `IOS-*` scenario
+  (which all produce one, win or lose). The direct absolute-path call never goes through the
+  wrapper that would have written it — confirmed now that `IOS-G01`/`IOS-B01` are known to
+  genuinely produce that file in the same workspace.
 
 ## Why it happens
 `activate-build-cache-for-xcode` intercepts `xcodebuild` invocations via a mechanism tied to how

@@ -25,17 +25,15 @@ steps:
 ```
 
 ## What you see
-- Log evidence (real, build 28): `xcode-build-for-simulator` runs and succeeds *before* the
-  `activate-build-cache-for-xcode` step's `✅ Bitrise Build Cache for Xcode activated` /
-  `baseline benchmark mode` lines appear in the log — confirming the step order defect is real and
-  visible, not just inferred from the YAML.
-- Metrics: `remote_cache.engaged == false` for this build — same signature as `IOS-B01`.
-- **Caveat**: this run also hit the workspace-level Build Cache for Xcode entitlement gate
-  (`docs/reference/verified-facts.md`), so `IOS-G01` currently shows the same `engaged == false`
-  signature too — this scenario's step-order evidence (activation log lines appearing after the
-  build) is real and independently confirms the ordering defect regardless of that gate, but the
-  engaged/false metric alone doesn't yet distinguish "wrong order" from "not entitled." Re-verify
-  once the workspace is enabled.
+- Log evidence (real, build 33, workspace enabled for Build Cache for Xcode): `xcode-build-for-
+  simulator` runs and succeeds *before* the `activate-build-cache-for-xcode` step's
+  `✅ Bitrise Build Cache for Xcode activated` lines appear in the log — confirming the step order
+  defect is real and visible, not just inferred from the YAML.
+- Metrics: `remote_cache.engaged == false`, `found_any_signal == false` — **no `xcelerate-*.log`
+  file exists at all** for this build, the same absence seen in `IOS-B03` (bypass), but for a
+  different reason: here the wrapper *is* installed, just too late to see the build that already
+  ran. Now that `IOS-G01` is confirmed to produce real hits in this same workspace, this absence
+  cleanly demonstrates the ordering defect on its own.
 
 ## Why it happens
 `activate-build-cache-for-xcode` configures the environment (an alias wrapping subsequent
