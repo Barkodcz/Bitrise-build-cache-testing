@@ -137,9 +137,46 @@ def node_steps(scn, phase):
     return steps, extra_envs
 
 
+def _go_key(cache_name):
+    return f'{cache_name}-{{{{ getenv "SHOWCASE_NS" }}}}-{{{{ .OS }}}}-{{{{ checksum "projects/go/go.sum" }}}}'
+
+
+def go_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    go_version = overrides.pop("go_version", "1.22.0")
+    cache_build = overrides.pop("cache_build", "true") == "true"
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"go_version", "cache_build", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    mod_restore = {"bundle::kb_restore": {"inputs": [{"key": _go_key("gomod")}, {"name": "gomod"}]}}
+    mod_save = {"bundle::kb_save": {"inputs": [{"key": _go_key("gomod")}, {"paths": "~/go/pkg/mod"}, {"name": "gomod"}]}}
+    build_restore = {"bundle::kb_restore": {"inputs": [{"key": _go_key("gobuild")}, {"name": "gobuild"}]}}
+    build_save = {"bundle::kb_save": {"inputs": [{"key": _go_key("gobuild")}, {"paths": "~/.cache/go-build"}, {"name": "gobuild"}]}}
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    steps.append(mod_restore)
+    if cache_build:
+        steps.append(build_restore)
+    steps.append({"bundle::go_build": {"inputs": [{"go_version": go_version}]}})
+    steps.append(mod_save)
+    if cache_build:
+        steps.append(build_save)
+
+    steps += [{"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}}]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
+    "go": go_steps,
 }
 
 

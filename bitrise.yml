@@ -51,6 +51,26 @@ pipelines:
         - and-b05__2_measure
         - and-b09__2_measure
         should_always_run: workflow
+  showcase-go:
+    workflows:
+      go-b01__1_seed: {}
+      go-b01__2_measure:
+        depends_on:
+        - go-b01__1_seed
+      go-b02__1_seed: {}
+      go-b02__2_measure:
+        depends_on:
+        - go-b02__1_seed
+      go-g01__1_seed: {}
+      go-g01__2_measure:
+        depends_on:
+        - go-g01__1_seed
+      report_go:
+        depends_on:
+        - go-g01__2_measure
+        - go-b01__2_measure
+        - go-b02__2_measure
+        should_always_run: workflow
   showcase-node:
     workflows:
       node-b01__1_seed: {}
@@ -100,6 +120,17 @@ step_bundles:
     - deploy-to-bitrise-io@2.26.2:
         inputs:
         - pipeline_intermediate_files: $SHOWCASE_METRICS_DIR/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}.json:SHOWCASE_METRICS_DIR_${SHOWCASE_SCENARIO_ID}
+  go_build:
+    inputs:
+    - go_version: 1.22.0
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-go.sh "$go_version"
+        title: go build + test
   gradle_build:
     inputs:
     - tasks: :app:assembleDebug :core:model:testDebugUnitTest
@@ -581,6 +612,231 @@ workflows:
     summary: ✅ GOOD — Build Cache for Gradle, correctly placed, key-cached wrapper
       + deps
     title: AND-G01 · measure
+  go-b01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-B01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.22.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Downloads are skipped but the full package set still compiles
+      every time.
+    title: GO-B01 · seed
+  go-b01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-B01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.22.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — Downloads are skipped but the full package set still compiles
+      every time.
+    title: GO-B01 · measure
+  go-b02__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-B02
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::kb_restore:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gobuild
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.21.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::kb_save:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/.cache/go-build
+        - name: gobuild
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — GOCACHE entries from the seed are unusable at measure time even
+      though the cache key matched (the key never included the Go version).
+    title: GO-B02 · seed
+  go-b02__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-B02
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::kb_restore:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gobuild
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.22.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::kb_save:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/.cache/go-build
+        - name: gobuild
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — GOCACHE entries from the seed are unusable at measure time even
+      though the cache key matched (the key never included the Go version).
+    title: GO-B02 · measure
+  go-g01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-G01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::kb_restore:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gobuild
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.22.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::kb_save:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/.cache/go-build
+        - name: gobuild
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — pkg/mod + go-build cache keyed on go.sum
+    title: GO-G01 · seed
+  go-g01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: GO-G01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: go
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gomod
+    - bundle::kb_restore:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - name: gobuild
+    - bundle::go_build:
+        inputs:
+        - go_version: 1.22.0
+    - bundle::kb_save:
+        inputs:
+        - key: gomod-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/go/pkg/mod
+        - name: gomod
+    - bundle::kb_save:
+        inputs:
+        - key: gobuild-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/go/go.sum"
+            }}
+        - paths: ~/.cache/go-build
+        - name: gobuild
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — pkg/mod + go-build cache keyed on go.sum
+    title: GO-G01 · measure
   node-b01__1_seed:
     envs:
     - SHOWCASE_SCENARIO_ID: NODE-B01
@@ -880,6 +1136,14 @@ workflows:
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-android
+  report_go:
+    envs:
+    - SHOWCASE_STACK: go
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::report: {}
+    summary: Renders the HTML/Markdown report and runs assertions for this stack.
+    title: Report · showcase-go
   report_node:
     envs:
     - SHOWCASE_STACK: node

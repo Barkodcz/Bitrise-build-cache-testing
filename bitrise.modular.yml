@@ -14,5 +14,7 @@ include:
 - path: .bitrise/bundles/key-based.yml
 - path: .bitrise/workflows/android.yml
 - path: .bitrise/workflows/node.yml
+- path: .bitrise/workflows/go.yml
 - path: .bitrise/pipelines/android.yml
 - path: .bitrise/pipelines/node.yml
+- path: .bitrise/pipelines/go.yml

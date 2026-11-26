@@ -1,10 +1,11 @@
 # Generic key-based cache bundles (spec §3.9, §7.3) used by every key-based-caching scenario.
 # Each bundle pairs the official cache step with a `keybased_record.sh` call so the scenario
 # workflow itself only ever references `bundle::*` (spec §7.1's "raw step in a scenario = a smell").
-# `node_install` is the npm-specific wrapper used by the Node scenarios implemented so far
-# (scenarios/catalog.yml NODE-*). Ruby/Go/Rust/Python/Maven wrappers are not implemented yet
-# (status: planned) — add `ruby_install` / `go_build` / `rust_build` / `python_install` /
-# `maven_build` here, following the same shape, when those stacks move to `status: implemented`.
+# `node_install` is the npm-specific wrapper used by the Node scenarios (scenarios/catalog.yml
+# NODE-*); `go_build` is the Go wrapper used by the Go scenarios (GO-*). Ruby/Rust/Python/Maven
+# wrappers are not implemented yet (status: planned) — add `ruby_install` / `rust_build` /
+# `python_install` / `maven_build` here, following the same shape, when those stacks move to
+# `status: implemented`.
 step_bundles:
   kb_restore:
     inputs:
@@ -61,3 +62,19 @@ step_bundles:
             "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh start dependency_install
             npm ci --prefer-offline
             "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh stop dependency_install
+
+  # `go build ./... && go test ./...` against projects/go, via tools/run-go.sh (spec §6.8). Always
+  # installs the pinned `go_version` from scratch (go.dev/dl) rather than relying on whatever Go
+  # happens to be preinstalled on the stack — this is what makes GO-B02's toolchain-drift scenario
+  # meaningful (seed and measure can genuinely run different, real Go versions).
+  go_build:
+    inputs:
+    - go_version: "1.22.0"
+    steps:
+    - script@1.2.1:
+        title: "go build + test"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-go.sh "$go_version"

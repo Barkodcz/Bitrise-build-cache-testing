@@ -41,19 +41,24 @@ def gradle_fixture(sid, seed_share, measure_share, seed_dur, measure_dur, engage
                                 "download_upload_ratio": None, "proxy_total": None, "engaged": engaged and from_cache > 0}
     write(sid, "measure", measure)
 
-def kb_fixture(sid, restore_hit, saved=True, seed_dur=40, measure_dur=38):
-    seed = base(sid, "node", "seed")
+def kb_fixture(sid, restore_hit, saved=True, seed_dur=40, measure_dur=38, stack="node", name="npm",
+               key_based_entries=None):
+    seed = base(sid, stack, "seed")
     seed["durations_s"]["dependency_install"] = seed_dur
     seed["durations_s"]["total_workflow"] = seed_dur + 10
-    seed["key_based"] = [{"name": "npm", "key": "npm-...", "restore_hit": "false", "archive_bytes": 50_000_000,
-                           "restore_s": 1.0, "save_s": 5.0, "saved": True}]
+    seed["key_based"] = key_based_entries or [
+        {"name": name, "key": f"{name}-...", "restore_hit": "false", "archive_bytes": 50_000_000,
+         "restore_s": 1.0, "save_s": 5.0, "saved": True}
+    ]
     write(sid, "seed", seed)
 
-    measure = base(sid, "node", "measure")
+    measure = base(sid, stack, "measure")
     measure["durations_s"]["dependency_install"] = measure_dur
     measure["durations_s"]["total_workflow"] = measure_dur + 10
-    measure["key_based"] = [{"name": "npm", "key": "npm-...", "restore_hit": restore_hit, "archive_bytes": 50_000_000,
-                              "restore_s": 1.0, "save_s": 5.0, "saved": saved}]
+    measure["key_based"] = key_based_entries or [
+        {"name": name, "key": f"{name}-...", "restore_hit": restore_hit, "archive_bytes": 50_000_000,
+         "restore_s": 1.0, "save_s": 5.0, "saved": saved}
+    ]
     write(sid, "measure", measure)
 
 # GOOD: high hit share, fast measure
@@ -75,5 +80,12 @@ kb_fixture("NODE-B01", restore_hit="false")
 kb_fixture("NODE-B02", restore_hit="exact")  # stale-but-exact
 kb_fixture("NODE-B03", restore_hit="exact", measure_dur=42)  # one build behind, slightly slower
 kb_fixture("NODE-B05", restore_hit="exact", saved=True)
+
+# Go: GO-G01 good (both caches hit); GO-B01 bad (no gobuild entry at all); GO-B02 bad (exact "hit"
+# against a stale toolchain — restore_hit still reports exact, the point is the symptom isn't
+# visible in restore_hit alone, see docs/scenarios/go/GO-B02.md).
+kb_fixture("GO-G01", restore_hit="exact", stack="go", name="gobuild", seed_dur=20, measure_dur=6)
+kb_fixture("GO-B01", restore_hit="exact", stack="go", name="gomod", seed_dur=20, measure_dur=19)
+kb_fixture("GO-B02", restore_hit="exact", stack="go", name="gobuild", seed_dur=20, measure_dur=18)
 
 print("fixtures written")

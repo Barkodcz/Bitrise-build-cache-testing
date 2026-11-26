@@ -410,10 +410,60 @@ scenarios:
   - { id: RB-B01, stack: ruby, title: "Key without {{ .OS }} shared Linux<->macOS", verdict: bad, status: planned, doc: docs/scenarios/ruby/RB-B01.md, symptom: "Restored native gem (nokogiri) is unusable; bundle install recompiles (caught and recorded, not a hard failure).", root_cause: "Seed on Linux, measure on macOS, same cache key with no OS discriminator.", fix_ref: RB-G01 }
   - { id: RB-B02, stack: ruby, title: "Ruby version drift", verdict: bad, status: planned, doc: docs/scenarios/ruby/RB-B02.md, symptom: "Gems reinstall despite an exact key hit.", root_cause: "Seed on Ruby 3.2, measure on Ruby 3.3; .ruby-version not pinned, version not in the key.", fix_ref: RB-G01 }
 
-  # ───────────────────────────── Go — all planned ─────────────────────────────
-  - { id: GO-G01, stack: go, title: "pkg/mod + go-build cache keyed on go.sum", verdict: good, status: planned, doc: docs/scenarios/go/GO-G01.md }
-  - { id: GO-B01, stack: go, title: "Only module cache, no GOCACHE", verdict: bad, status: planned, doc: docs/scenarios/go/GO-B01.md, symptom: "Downloads are skipped but the full package set still compiles.", root_cause: "~/.cache/go-build never cached, only ~/go/pkg/mod.", fix_ref: GO-G01 }
-  - { id: GO-B02, stack: go, title: "Go toolchain drift", verdict: bad, status: planned, doc: docs/scenarios/go/GO-B02.md, symptom: "GOCACHE entries from the seed are unusable at measure time.", root_cause: "Different Go versions between seed and measure; version not pinned or keyed.", fix_ref: GO-G01 }
+  # ───────────────────────────── Go ─────────────────────────────
+  - id: GO-G01
+    stack: go
+    title: "pkg/mod + go-build cache keyed on go.sum"
+    verdict: good
+    status: implemented
+    pattern_tags: [both-caches, pinned-toolchain]
+    seed: { bundle_overrides: { go_version: "1.22.0", cache_build: "true" } }
+    measure: { bundle_overrides: { go_version: "1.22.0", cache_build: "true" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/go/GO-G01.md
+    field_evidence: "Baseline every GO-B* scenario is compared against."
+
+  - id: GO-B01
+    stack: go
+    title: "Only module cache, no GOCACHE"
+    verdict: bad
+    status: implemented
+    pattern_tags: [missing-build-cache]
+    seed: { bundle_overrides: { go_version: "1.22.0", cache_build: "false" } }
+    measure: { bundle_overrides: { go_version: "1.22.0", cache_build: "false" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.saved: "== true"
+    symptom: "Downloads are skipped but the full package set still compiles every time."
+    root_cause: "~/.cache/go-build is never cached, only ~/go/pkg/mod — this bundle omission is visible in the generated YAML (no go-build kb_restore/kb_save pair)."
+    fix_ref: GO-G01
+    doc: docs/scenarios/go/GO-B01.md
+    field_evidence: "The Go module cache (downloads) and the Go build cache (compiled package objects) are two different directories that are easy to conflate."
+
+  - id: GO-B02
+    stack: go
+    title: "Go toolchain drift"
+    verdict: bad
+    status: implemented
+    pattern_tags: [toolchain-drift]
+    seed: { bundle_overrides: { go_version: "1.21.0", cache_build: "true" } }
+    measure: { bundle_overrides: { go_version: "1.22.0", cache_build: "true" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "exists"
+    symptom: "GOCACHE entries from the seed are unusable at measure time even though the cache key matched (the key never included the Go version)."
+    root_cause: "Seed builds with Go 1.21.0, measure builds with Go 1.22.0 — the go-build cache key is keyed only on go.sum, not on the toolchain version."
+    fix_ref: GO-G01
+    doc: docs/scenarios/go/GO-B02.md
+    field_evidence: "Pinning the toolchain (go.mod `go` directive / CI image) is necessary but not sufficient — the cache key itself should include the version too."
 
   # ───────────────────────────── Rust — all planned ─────────────────────────────
   - { id: RS-G01, stack: rust, title: "cargo registry + scoped target/ cache", verdict: good, status: planned, doc: docs/scenarios/rust/RS-G01.md }

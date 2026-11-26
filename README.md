@@ -32,7 +32,7 @@ pulls every scenario's metrics and renders `showcase-report.html` / `.md` + JUni
 | bazel | 0 | 7 | 7 |
 | cross-cutting | 0 | 3 | 3 |
 | flutter | 0 | 4 | 4 |
-| go | 0 | 3 | 3 |
+| go | 3 | 0 | 3 |
 | ios | 0 | 13 | 13 |
 | jvm-maven | 0 | 3 | 3 |
 | node | 5 | 2 | 7 |
@@ -40,13 +40,14 @@ pulls every scenario's metrics and renders `showcase-report.html` / `.md` + JUni
 | react-native | 0 | 7 | 7 |
 | ruby | 0 | 3 | 3 |
 | rust | 0 | 3 | 3 |
-| **total** | **11** | **62** | **73** |
+| **total** | **14** | **59** | **73** |
 <!-- SCENARIO-MATRIX:END -->
 
-Two stacks are fully implemented and wired into a real `bitrise.yml`: **Android/Gradle**
-(`docs/stacks/android.md`) and **Node.js key-based caching** (`docs/stacks/node.md`). Every other
-stack from the full spec is catalogued (`scenarios/catalog.yml`, `status: planned`) with a doc
-stub, ready to be implemented the same way — see [`CLAUDE.md`](CLAUDE.md) "Scope status".
+Three stacks are fully implemented and wired into a real `bitrise.yml`: **Android/Gradle**
+(`docs/stacks/android.md`), **Node.js key-based caching** (`docs/stacks/node.md`), and **Go**
+(`docs/stacks/go.md`). Every other stack from the full spec is catalogued (`scenarios/catalog.yml`,
+`status: planned`) with a doc stub, ready to be implemented the same way — see
+[`CLAUDE.md`](CLAUDE.md) "Scope status".
 
 ## Docs
 
