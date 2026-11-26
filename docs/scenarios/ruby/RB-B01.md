@@ -35,17 +35,41 @@ scenario to still exit 0, so the symptom has to be *caught and recorded*, not le
 build.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._` — expect a line like
-  `run-ruby.sh: smoke test FAILED after bundle install -- restored gems are unusable`, followed by a
-  successful retry after the forced reinstall.
-- Metrics: `key_based.restore_hit` may report a hit (the literal key string matches across both
-  OSes), but the restored native gem doesn't actually work on the second OS.
+- **Real captured log** (`rb-b01__2_measure`, build 27, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  Cache key: bundle-ca7eaab3-d72f-4c14-9e09-69bba72f7221-RB-B01-5c863bc976a62e4058ccf6c2b58ebd935254923c448a83e8abce971a8958f021
+  Exact hit for first key
+  Archive size: 9.81MB
+  Restoring archive...
+  Output: /bitrise/src/projects/ruby/vendor/bundle/: Failed to create dir '/bitrise': Read-only file system
+  ... (repeated for every file in the archive)
+  ```
+  — confirmed via the seed run's log that this is the **exact same literal cache key** used on both
+  phases (no `{{ .OS }}` anywhere in it). The restore step reports "Exact hit" (the Linux-built
+  archive genuinely matched and started downloading), then fails outright trying to extract it onto
+  the macOS stack.
+- **This is a more dramatic — and more real — failure mode than originally designed.** The spec's
+  hypothesis for this scenario was a *subtler* symptom: the gem restores "successfully" but then
+  fails an ABI compatibility check at runtime. What actually happens on this Bitrise macOS stack
+  (`osx-xcode-latest-stable`) is blunter: `restore-cache@3.0.2` cannot even extract a Linux-built
+  archive's directory structure, apparently because of how `/bitrise/src` is mounted/overlaid on
+  this macOS stack image. The restore step itself fails (shown as a yellow "Restore Cache (Failed)"
+  in the step list) but — correctly, per spec §0.6 — does **not** fail the overall workflow; the
+  build continues straight to a clean `bundle install` from scratch, which is why `run-ruby.sh`'s
+  smoke test still passes on the first try (there was nothing broken to catch — the restore never
+  got far enough to leave broken files behind).
+- Metrics: `key_based.restore_hit == "false"` (the recorder falls back to `"false"` when
+  `BITRISE_CACHE_HIT` isn't set to a success value, which is what happens when the step itself
+  fails) — not because the key differed, but because of the extraction failure above.
 
 ## Why it happens
 Native-extension gems like `nokogiri` compile to OS- and architecture-specific shared libraries.
 `Gemfile.lock` alone doesn't capture *which platform* a `vendor/bundle` archive was built for — the
 cache key needs a separate discriminator (`{{ .OS }}`) for that. Without it, a Linux-built archive
-and a macOS build share the same cache slot, and whichever one wrote last "wins" the slot for both.
+and a macOS build share the same cache slot: on this real infra, that manifests as the restore step
+itself failing to extract the mismatched archive (see above) rather than a subtler runtime ABI
+failure — either way, the root cause is identical: one cache slot, shared across two platforms that
+can't use the same contents.
 
 ## How to fix it
 ```diff

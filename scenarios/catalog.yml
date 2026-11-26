@@ -436,11 +436,11 @@ scenarios:
     machine: linux-default
     expectations:
       key_based.restore_hit: "exists"
-    symptom: "The nokogiri native gem compiled on Linux is restored into a macOS build; it's unusable there, so bundle install has to detect the failure and reinstall from scratch rather than actually benefiting from the restore."
-    root_cause: 'Cache key omits {{ .OS }}, so a Linux-built archive and a macOS build share the same cache slot even though native extension binaries are platform-specific.'
+    symptom: "The Linux-built archive genuinely matches the cache key on the macOS measure build ('Exact hit'), but restore-cache@3.0.2 fails outright extracting it onto this macOS stack ('Read-only file system') — a more dramatic real-world failure mode than the hypothesized subtler ABI mismatch. The step failure doesn't fail the workflow; the build falls through to a clean bundle install."
+    root_cause: 'Cache key omits {{ .OS }}, so a Linux-built archive and a macOS build share the same cache slot even though native extension binaries are platform-specific. Confirmed on real infra (build 27): identical literal cache key on both phases, "Exact hit" reported, then extraction failure.'
     fix_ref: RB-G01
     doc: docs/scenarios/ruby/RB-B01.md
-    field_evidence: "The classic 'shared cache key across OSes' mistake for any stack with native/compiled dependencies — the symptom here is caught and recovered from inside tools/run-ruby.sh rather than hard-failing the build (spec §0.6)."
+    field_evidence: "The classic 'shared cache key across OSes' mistake for any stack with native/compiled dependencies — real infra surfaced it as a harder failure (extraction error) than expected, still exiting 0 per spec §0.6."
 
   - id: RB-B02
     stack: ruby
@@ -454,7 +454,7 @@ scenarios:
     machine: linux-default
     expectations:
       key_based.restore_hit: "exists"
-    symptom: "Gems restore under a matching key (same OS, same Gemfile.lock) but were compiled for Ruby 3.2.2's native extension ABI; running them under Ruby 3.3.0 is unreliable, so bundle install has to detect and reinstall rather than genuinely reusing the cache."
+    symptom: "Restore reports an exact hit (confirmed on real infra, build 27) and the build 'looks' fine -- no error -- but bundle install silently recompiles nokogiri from scratch because Bundler installs native extensions under a Ruby-ABI-versioned path, costing ~2.7 minutes vs ~13 seconds for a matching-version run. Almost none of the cache's benefit is realized despite the exact hit."
     root_cause: "Seed builds with Ruby 3.2.2, measure with Ruby 3.3.0 — the cache key includes the OS but not the Ruby version, so a toolchain change doesn't bust the key."
     fix_ref: RB-G01
     doc: docs/scenarios/ruby/RB-B02.md

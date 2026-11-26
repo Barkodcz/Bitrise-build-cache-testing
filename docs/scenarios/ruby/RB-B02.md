@@ -33,15 +33,33 @@ cloned directly from GitHub if not already present) — real, historically-relea
 that stay installable indefinitely.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.restore_hit` may report a hit (same OS, same `Gemfile.lock`), but
-  `tools/run-ruby.sh`'s smoke test can fail and trigger the forced-reinstall recovery path, the same
-  signal as `RB-B01` but caused by a Ruby *version* mismatch rather than an OS mismatch.
+- **Real captured log** (`rb-b02__2_measure`, build 27, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=bundle hit=exact
+  run-ruby.sh: using ruby 3.3.0 (2023-12-25 revision 5124f9ac75) [x86_64-linux]
+  run-ruby.sh: smoke test passed after bundle install (native gems usable as restored)
+  ```
+  — `bundle install + smoke test` took **2.7 minutes** here, vs. ~13 seconds for the equivalent
+  step in `RB-G01`/`RB-B01` (same machine class, same gem). The smoke test *did* pass on the first
+  try — but only because Bundler/RubyGems install native extensions under a Ruby-ABI-versioned path
+  (`extensions/<platform>/<ruby-abi-version>/...`); restoring a `vendor/bundle` built under 3.2.2's
+  ABI into a 3.3.0 process means `bundle install` doesn't find a matching extension directory for
+  3.3.0 and **silently recompiles `nokogiri` from scratch**, which is where the extra ~2.5 minutes
+  goes. This is a *quieter* symptom than `RB-B01`'s hard restore failure: the build "looks" fine
+  (no error, no forced-reinstall message) but almost none of the cache's time-saving benefit was
+  actually realized.
+- Metrics: `key_based.restore_hit == "exact"` — the restore itself genuinely succeeded (same OS,
+  same `Gemfile.lock`); the wasted time is downstream of the restore, inside `bundle install`'s own
+  native-extension handling.
 
 ## Why it happens
-Ruby native extensions are compiled against a specific Ruby version's C API and ABI. A gem built
-under Ruby 3.2.2 isn't guaranteed to load correctly under Ruby 3.3.0, even on the identical OS and
-architecture. A cache key that accounts for the OS but not the Ruby version misses this entirely.
+Ruby native extensions are compiled against a specific Ruby version's ABI, and RubyGems/Bundler
+know this: they install compiled extensions under a per-ABI-version subdirectory
+(`extensions/<platform>/<ruby-abi-version>/...`). A cache key that accounts for the OS but not the
+Ruby version restores a `vendor/bundle` whose extension directory doesn't match the running Ruby's
+ABI version at all — Bundler notices this itself (it's not a cache bug, it's Bundler behaving
+correctly) and quietly recompiles, consuming most of the wall-clock time the cache was supposed to
+save without any visible error.
 
 ## How to fix it
 ```diff
