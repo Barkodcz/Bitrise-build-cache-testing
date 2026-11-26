@@ -35,7 +35,15 @@ stable release downloadable indefinitely, so pinning two real, years-apart versi
 long-term (verified locally: both `1.75.0` and `1.82.0` installed and built cleanly).
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`rs-b02__2_measure`, build 23, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=cargo-registry hit=exact
+  keybased_record: restore name=cargo-target hit=exact
+  run-rust.sh: using cargo 1.82.0 (8f40fc59f 2024-08-21)
+  ```
+  — this is the measure run; the seed run used Rust `1.75.0`. The `cargo-target` entry still reports
+  `hit=exact` even though the underlying toolchain changed, confirming the symptom exactly as
+  designed: an exact key match restoring cache content built by an incompatible toolchain.
 - Metrics: the `cargo-target` entry's `restore_hit` can still report a hit (the literal key string
   matched), but the restored cache was compiled by a different Rust toolchain than the one now
   running.

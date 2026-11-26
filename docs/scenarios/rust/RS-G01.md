@@ -41,9 +41,14 @@ installer) rather than relying on whatever's preinstalled on the stack — this 
 Rust versions.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`rs-g01__2_measure`, build 23, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=cargo-registry hit=exact
+  keybased_record: restore name=cargo-target hit=exact
+  run-rust.sh: using cargo 1.82.0 (8f40fc59f 2024-08-21)
+  ```
 - Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run for both the
-  `cargo-registry` and `cargo-target` entries.
+  `cargo-registry` and `cargo-target` entries — confirmed `exact` for both on the first real run.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline. `RS-B01` and `RS-B02` both point back here.

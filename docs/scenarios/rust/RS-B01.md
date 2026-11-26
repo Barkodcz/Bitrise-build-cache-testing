@@ -37,7 +37,14 @@ the toolchain+profile suffix, and the profile itself differs between phases:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
+- **Real captured log** (`rs-b01__2_measure`, build 23, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=cargo-registry hit=exact
+  keybased_record: restore name=cargo-target hit=exact
+  run-rust.sh: using cargo 1.82.0 (8f40fc59f 2024-08-21)
+  ```
+  — the seed built the `release` profile; this measure run builds `dev`, yet `cargo-target` still
+  reports `hit=exact` under the shared, profile-agnostic key.
 - Metrics: `key_based.restore_hit` may report a hit (the literal key string matches), but the
   restored `target/` was built for a different profile than the one now compiling — Cargo's own
   fingerprinting will notice the mismatch per-unit and recompile, so the restore time was wasted.
