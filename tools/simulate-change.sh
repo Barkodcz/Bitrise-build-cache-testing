@@ -99,7 +99,7 @@ PY
       *) echo "unknown change kind: $kind" >&2; exit 1 ;;
     esac
     ;;
-  maven)
+  jvm-maven)
     case "$kind" in
       none) ;;
       leaf|core)
