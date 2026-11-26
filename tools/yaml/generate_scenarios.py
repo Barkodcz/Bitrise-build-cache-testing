@@ -212,11 +212,46 @@ def rust_steps(scn, phase):
     return steps, extra_envs
 
 
+def _py_key(key_file):
+    return f'{{{{ getenv "SHOWCASE_NS" }}}}-{{{{ .OS }}}}-{{{{ checksum "{key_file}" }}}}'
+
+
+def python_steps(scn, phase):
+    overrides = dict(scn.get(phase, {}).get("bundle_overrides", {}))
+    app = overrides.pop("app", "pip")
+    cache_name = overrides.pop("cache_name", "pip-cache")
+    cache_paths = overrides.pop("cache_paths", "~/.cache/pip")
+    restore_key_file = overrides.pop("restore_key_file", "projects/python/pip_app/requirements.txt")
+    save_key_file = overrides.pop("save_key_file", restore_key_file)
+    change_kind = overrides.pop("change_kind", None)
+    consumed = {"app", "cache_name", "cache_paths", "restore_key_file", "save_key_file", "change_kind"}
+    extra_envs = extra_envs_from_overrides(overrides, consumed)
+
+    restore_key = f'{cache_name}-{_py_key(restore_key_file)}'
+    save_key = f'{cache_name}-{_py_key(save_key_file)}'
+
+    steps = [{"bundle::setup_checkout": {}}, {"bundle::setup_showcase": {}}]
+    if phase == "measure":
+        if change_kind:
+            steps.append({"bundle::simulate_change": {"inputs": [{"kind": change_kind}]}})
+        else:
+            steps.append({"bundle::simulate_change": {}})
+
+    steps += [
+        {"bundle::kb_restore": {"inputs": [{"key": restore_key}, {"name": cache_name}]}},
+        {"bundle::python_install": {"inputs": [{"app": app}]}},
+        {"bundle::kb_save": {"inputs": [{"key": save_key}, {"paths": cache_paths}, {"name": cache_name}]}},
+        {"bundle::collect_metrics": {}}, {"bundle::deploy_metrics": {}},
+    ]
+    return steps, extra_envs
+
+
 STACK_BUILDERS = {
     "android": android_steps,
     "node": node_steps,
     "go": go_steps,
     "rust": rust_steps,
+    "python": python_steps,
 }
 
 

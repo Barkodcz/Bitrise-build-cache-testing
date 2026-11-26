@@ -101,6 +101,31 @@ pipelines:
         - node-b03__2_measure
         - node-b05__2_measure
         should_always_run: workflow
+  showcase-python:
+    workflows:
+      py-b01__1_seed: {}
+      py-b01__2_measure:
+        depends_on:
+        - py-b01__1_seed
+      py-b02__1_seed: {}
+      py-b02__2_measure:
+        depends_on:
+        - py-b02__1_seed
+      py-g01__1_seed: {}
+      py-g01__2_measure:
+        depends_on:
+        - py-g01__1_seed
+      py-g02__1_seed: {}
+      py-g02__2_measure:
+        depends_on:
+        - py-g02__1_seed
+      report_python:
+        depends_on:
+        - py-g01__2_measure
+        - py-g02__2_measure
+        - py-b01__2_measure
+        - py-b02__2_measure
+        should_always_run: workflow
   showcase-rust:
     workflows:
       report_rust:
@@ -248,6 +273,17 @@ step_bundles:
             npm ci --prefer-offline
             "$BITRISE_SOURCE_DIR"/tools/metrics/timing.sh stop dependency_install
         title: npm ci
+  python_install:
+    inputs:
+    - app: pip
+    steps:
+    - script@1.2.1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-python.sh "$app"
+        title: pip/poetry install + test
   report:
     inputs:
     - fail_on_assertion: $SHOWCASE_FAIL_ON_ASSERTION
@@ -1160,6 +1196,248 @@ workflows:
     - bundle::deploy_metrics: {}
     summary: '✅ GOOD — npm: ~/.npm keyed on package-lock.json, fallback chain, is_key_unique'
     title: NODE-G01 · measure
+  py-b01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-B01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: poetry-cache
+    - bundle::python_install:
+        inputs:
+        - app: poetry
+    - bundle::kb_save:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - paths: ~/.cache/pypoetry
+        - name: poetry-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — BITRISE_CACHE_HIT=false forever, even though this project is
+      100%!P(MISSING)oetry-managed and poetry.lock never changes.
+    title: PY-B01 · seed
+  py-b01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-B01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: poetry-cache
+    - bundle::python_install:
+        inputs:
+        - app: poetry
+    - bundle::kb_save:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - paths: ~/.cache/pypoetry
+        - name: poetry-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ❌ BAD — BITRISE_CACHE_HIT=false forever, even though this project is
+      100%!P(MISSING)oetry-managed and poetry.lock never changes.
+    title: PY-B01 · measure
+  py-b02__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-B02
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: pip-venv-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: pip-venv
+    - bundle::python_install:
+        inputs:
+        - app: pip
+    - bundle::kb_save:
+        inputs:
+        - key: pip-venv-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - paths: projects/python/pip_app/.venv
+        - name: pip-venv
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — A much larger archive (the whole venv: interpreter copy, stdlib,
+      compiled packages) than caching pip''s own download cache alone, for no additional
+      correctness benefit.'
+    title: PY-B02 · seed
+  py-b02__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-B02
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: pip-venv-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: pip-venv
+    - bundle::python_install:
+        inputs:
+        - app: pip
+    - bundle::kb_save:
+        inputs:
+        - key: pip-venv-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - paths: projects/python/pip_app/.venv
+        - name: pip-venv
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: '❌ BAD — A much larger archive (the whole venv: interpreter copy, stdlib,
+      compiled packages) than caching pip''s own download cache alone, for no additional
+      correctness benefit.'
+    title: PY-B02 · measure
+  py-g01__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-G01
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: pip-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: pip-cache
+    - bundle::python_install:
+        inputs:
+        - app: pip
+    - bundle::kb_save:
+        inputs:
+        - key: pip-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - paths: ~/.cache/pip
+        - name: pip-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — pip cache keyed on requirements.txt
+    title: PY-G01 · seed
+  py-g01__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-G01
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: pip-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - name: pip-cache
+    - bundle::python_install:
+        inputs:
+        - app: pip
+    - bundle::kb_save:
+        inputs:
+        - key: pip-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/pip_app/requirements.txt"
+            }}
+        - paths: ~/.cache/pip
+        - name: pip-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — pip cache keyed on requirements.txt
+    title: PY-G01 · measure
+  py-g02__1_seed:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-G02
+    - SHOWCASE_PHASE: seed
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - name: poetry-cache
+    - bundle::python_install:
+        inputs:
+        - app: poetry
+    - bundle::kb_save:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - paths: ~/.cache/pypoetry
+        - name: poetry-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — Poetry cache keyed on poetry.lock
+    title: PY-G02 · seed
+  py-g02__2_measure:
+    envs:
+    - SHOWCASE_SCENARIO_ID: PY-G02
+    - SHOWCASE_PHASE: measure
+    - SHOWCASE_STACK: python
+    meta:
+      bitrise.io:
+        stack: ubuntu-noble-24.04-bitrise-2025-android
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::setup_showcase: {}
+    - bundle::simulate_change: {}
+    - bundle::kb_restore:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - name: poetry-cache
+    - bundle::python_install:
+        inputs:
+        - app: poetry
+    - bundle::kb_save:
+        inputs:
+        - key: poetry-cache-{{ getenv "SHOWCASE_NS" }}-{{ .OS }}-{{ checksum "projects/python/poetry_app/poetry.lock"
+            }}
+        - paths: ~/.cache/pypoetry
+        - name: poetry-cache
+    - bundle::collect_metrics: {}
+    - bundle::deploy_metrics: {}
+    summary: ✅ GOOD — Poetry cache keyed on poetry.lock
+    title: PY-G02 · measure
   report_android:
     envs:
     - SHOWCASE_STACK: android
@@ -1184,6 +1462,14 @@ workflows:
     - bundle::report: {}
     summary: Renders the HTML/Markdown report and runs assertions for this stack.
     title: Report · showcase-node
+  report_python:
+    envs:
+    - SHOWCASE_STACK: python
+    steps:
+    - bundle::setup_checkout: {}
+    - bundle::report: {}
+    summary: Renders the HTML/Markdown report and runs assertions for this stack.
+    title: Report · showcase-python
   report_rust:
     envs:
     - SHOWCASE_STACK: rust

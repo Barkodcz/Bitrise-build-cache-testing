@@ -2,8 +2,8 @@
 # Each bundle pairs the official cache step with a `keybased_record.sh` call so the scenario
 # workflow itself only ever references `bundle::*` (spec §7.1's "raw step in a scenario = a smell").
 # `node_install` is the npm-specific wrapper used by the Node scenarios (scenarios/catalog.yml
-# NODE-*); `go_build`/`rust_build` are the Go/Rust wrappers (GO-*/RS-*). Ruby/Python/Maven wrappers
-# are not implemented yet (status: planned) — add `ruby_install` / `python_install` / `maven_build`
+# NODE-*); `go_build`/`rust_build`/`python_install` are the Go/Rust/Python wrappers (GO-*/RS-*/PY-*).
+# Ruby/Maven wrappers are not implemented yet (status: planned) — add `ruby_install` / `maven_build`
 # here, following the same shape, when those stacks move to `status: implemented`.
 step_bundles:
   kb_restore:
@@ -93,3 +93,19 @@ step_bundles:
             #!/usr/bin/env bash
             set -euo pipefail
             "$BITRISE_SOURCE_DIR"/tools/run-rust.sh "$toolchain" "$profile"
+
+  # pip install -r requirements.txt / poetry install + run tests against projects/python, via
+  # tools/run-python.sh (spec §6.10). Which directory gets cached (pip's download cache vs. the
+  # whole .venv; poetry's cache dir) is decided entirely by the generator's kb_restore/kb_save
+  # wiring per scenario, not by this bundle — see PY-G01/PY-B02's contrast.
+  python_install:
+    inputs:
+    - app: "pip"
+    steps:
+    - script@1.2.1:
+        title: "pip/poetry install + test"
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            "$BITRISE_SOURCE_DIR"/tools/run-python.sh "$app"

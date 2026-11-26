@@ -521,10 +521,81 @@ scenarios:
     field_evidence: "Pinning the toolchain (a rust-toolchain.toml) is necessary but not sufficient — the cache key itself should include the version too, the same lesson GO-B02 teaches for Go."
 
   # ───────────────────────────── Python — all planned ─────────────────────────────
-  - { id: PY-G01, stack: python, title: "pip cache keyed on requirements*.txt", verdict: good, status: planned, doc: docs/scenarios/python/PY-G01.md }
-  - { id: PY-G02, stack: python, title: "Poetry cache keyed on poetry.lock", verdict: good, status: planned, doc: docs/scenarios/python/PY-G02.md }
-  - { id: PY-B01, stack: python, title: "Key on stale requirements.txt while install reads poetry.lock", verdict: bad, status: planned, doc: docs/scenarios/python/PY-B01.md, symptom: "Key never changes when dependencies actually do.", root_cause: "Checksum targets the wrong lockfile for the install tool in use.", fix_ref: PY-G02 }
-  - { id: PY-B02, stack: python, title: "Whole .venv cached across Python versions", verdict: bad, status: planned, doc: docs/scenarios/python/PY-B02.md, symptom: "Broken or fully rebuilt environment.", root_cause: ".venv cached directly instead of the pip/poetry cache dir; Python version not in the key.", fix_ref: PY-G01 }
+  - id: PY-G01
+    stack: python
+    title: "pip cache keyed on requirements.txt"
+    verdict: good
+    status: implemented
+    pattern_tags: [exact-key-match, lean-cache-path]
+    seed: { bundle_overrides: { app: "pip", cache_name: "pip-cache", cache_paths: "~/.cache/pip" } }
+    measure: { bundle_overrides: { app: "pip", cache_name: "pip-cache", cache_paths: "~/.cache/pip" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/python/PY-G01.md
+    field_evidence: "Baseline every PY-B* scenario pip side is compared against."
+
+  - id: PY-G02
+    stack: python
+    title: "Poetry cache keyed on poetry.lock"
+    verdict: good
+    status: implemented
+    pattern_tags: [exact-key-match, lean-cache-path]
+    seed: { bundle_overrides: { app: "poetry", cache_name: "poetry-cache", cache_paths: "~/.cache/pypoetry", restore_key_file: "projects/python/poetry_app/poetry.lock" } }
+    measure: { bundle_overrides: { app: "poetry", cache_name: "poetry-cache", cache_paths: "~/.cache/pypoetry", restore_key_file: "projects/python/poetry_app/poetry.lock" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"exact\", \"partial\"]"
+    symptom: null
+    root_cause: null
+    fix_ref: null
+    doc: docs/scenarios/python/PY-G02.md
+    field_evidence: "Baseline PY-B01 is compared against."
+
+  - id: PY-B01
+    stack: python
+    title: "Key on stale requirements.txt while install reads poetry.lock"
+    verdict: bad
+    status: implemented
+    pattern_tags: [restore-save-key-mismatch]
+    seed:
+      bundle_overrides: { app: "poetry", cache_name: "poetry-cache", cache_paths: "~/.cache/pypoetry",
+        restore_key_file: "projects/python/pip_app/requirements.txt", save_key_file: "projects/python/poetry_app/poetry.lock" }
+    measure:
+      bundle_overrides: { app: "poetry", cache_name: "poetry-cache", cache_paths: "~/.cache/pypoetry",
+        restore_key_file: "projects/python/pip_app/requirements.txt", save_key_file: "projects/python/poetry_app/poetry.lock" }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.restore_hit: "in [\"false\"]"
+    symptom: "BITRISE_CACHE_HIT=false forever, even though this project is 100% Poetry-managed and poetry.lock never changes."
+    root_cause: "restore-cache key checksums projects/python/pip_app/requirements.txt (an unrelated file, for a different app entirely); save-cache key checksums the real poetry.lock — the literal key strings never match."
+    fix_ref: PY-G02
+    doc: docs/scenarios/python/PY-B01.md
+    field_evidence: "The same restore≠save-key mistake as NODE-B01, here from checksumming the wrong lockfile for the install tool actually in use (spec §3.9)."
+
+  - id: PY-B02
+    stack: python
+    title: "Whole .venv cached instead of pip's download cache"
+    verdict: bad
+    status: implemented
+    pattern_tags: [too-broad-cache-path]
+    seed: { bundle_overrides: { app: "pip", cache_name: "pip-venv", cache_paths: "projects/python/pip_app/.venv" } }
+    measure: { bundle_overrides: { app: "pip", cache_name: "pip-venv", cache_paths: "projects/python/pip_app/.venv" } }
+    stack_id: linux-default
+    machine: linux-default
+    expectations:
+      key_based.saved: "== true"
+    symptom: "A much larger archive (the whole venv: interpreter copy, stdlib, compiled packages) than caching pip's own download cache alone, for no additional correctness benefit."
+    root_cause: "The cache stores the entire .venv directory instead of ~/.cache/pip — pip's own download cache is already enough to make installs fast; caching the venv wholesale just makes every restore/save bigger and slower."
+    fix_ref: PY-G01
+    doc: docs/scenarios/python/PY-B02.md
+    field_evidence: "The same 'too-broad path' mistake as AND-B11/IOS-B09 — caching a build output directory instead of the tool's own dependency cache."
 
   # ───────────────────────────── Java / Maven — all planned ─────────────────────────────
   - { id: MVN-G01, stack: jvm-maven, title: "~/.m2/repository keyed on **/pom.xml", verdict: good, status: planned, doc: docs/scenarios/jvm-maven/MVN-G01.md }

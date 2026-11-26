@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "showcase-poetry"
+version = "0.1.0"
+description = "Minimal Poetry project for the Bitrise Build Cache showcase (scenarios/catalog.yml PY-*)"
+authors = ["Bitrise Build Cache Showcase"]
+packages = [{ include = "showcase_poetry" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.31"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

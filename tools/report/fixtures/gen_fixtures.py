@@ -94,4 +94,11 @@ kb_fixture("RS-G01", restore_hit="exact", stack="rust", name="cargo-target", see
 kb_fixture("RS-B01", restore_hit="exact", stack="rust", name="cargo-target", seed_dur=15, measure_dur=14)
 kb_fixture("RS-B02", restore_hit="exact", stack="rust", name="cargo-target", seed_dur=15, measure_dur=14)
 
+# Python: PY-G01/PY-G02 good (clean hits); PY-B01 bad (restore≠save key -> permanent miss);
+# PY-B02 bad (saved, but a much larger archive than PY-G01 for the same deps).
+kb_fixture("PY-G01", restore_hit="exact", stack="python", name="pip-cache", seed_dur=10, measure_dur=3)
+kb_fixture("PY-G02", restore_hit="exact", stack="python", name="poetry-cache", seed_dur=10, measure_dur=3)
+kb_fixture("PY-B01", restore_hit="false", stack="python", name="poetry-cache", seed_dur=10, measure_dur=10)
+kb_fixture("PY-B02", restore_hit="exact", stack="python", name="pip-venv", seed_dur=10, measure_dur=9)
+
 print("fixtures written")
