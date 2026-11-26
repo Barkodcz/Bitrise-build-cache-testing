@@ -99,7 +99,7 @@ step_bundles:
     steps:
     - deploy-to-bitrise-io@2.26.2:
         inputs:
-        - pipeline_intermediate_files: $SHOWCASE_METRICS_DIR:SHOWCASE_METRICS_DIR_$SHOWCASE_SCENARIO_ID
+        - pipeline_intermediate_files: $SHOWCASE_METRICS_DIR/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}.json:SHOWCASE_METRICS_DIR_${SHOWCASE_SCENARIO_ID}
   gradle_build:
     inputs:
     - tasks: :app:assembleDebug :core:model:testDebugUnitTest

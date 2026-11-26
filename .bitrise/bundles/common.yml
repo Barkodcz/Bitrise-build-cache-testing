@@ -57,13 +57,23 @@ step_bundles:
               --scenario "$SHOWCASE_SCENARIO_ID" --phase "$SHOWCASE_PHASE" \
               --out "$SHOWCASE_METRICS_DIR"
 
-  # Deploys this scenario's metrics JSON (+ raw build log) as a pipeline intermediate file so the
+  # Deploys this scenario's single merged metrics JSON as a pipeline intermediate file so the
   # report workflow can pull every scenario's output regardless of which node produced it.
+  #
+  # IMPORTANT: deploy only the one <SCENARIO>__<phase>.json file, NOT the whole $SHOWCASE_METRICS_DIR
+  # directory. Every scenario's deploy_path would otherwise resolve to the same basename ("metrics"),
+  # so deploy-to-bitrise-io zips each one as an identically-named "metrics.zip" artifact, and when
+  # pull-intermediate-files in the report workflow extracts several of those zips (each also
+  # containing the same internal `.fragments/` scratch-directory structure) into one shared working
+  # directory, concurrent/sequential unzips race on recreating `.fragments` and the step fails with
+  # "checkdir error: cannot create .fragments / File exists" (observed on a real run, see
+  # docs/reference/verified-facts.md). Deploying one uniquely-named file per scenario+phase avoids
+  # the collision entirely — and `.fragments/` is scratch-only, never needed after collect_metrics.
   deploy_metrics:
     steps:
     - deploy-to-bitrise-io@2.26.2:
         inputs:
-        - pipeline_intermediate_files: "$SHOWCASE_METRICS_DIR:SHOWCASE_METRICS_DIR_$SHOWCASE_SCENARIO_ID"
+        - pipeline_intermediate_files: "$SHOWCASE_METRICS_DIR/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}.json:SHOWCASE_METRICS_DIR_${SHOWCASE_SCENARIO_ID}"
 
   # Used only by `_report_<stack>` workflows: pulls every scenario's intermediate files, renders the
   # HTML/Markdown report, runs assertions, and deploys the results (spec §9.1).
