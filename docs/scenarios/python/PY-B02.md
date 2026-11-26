@@ -29,9 +29,17 @@ cached path:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.saved == true`, with a markedly larger `archive_bytes` than `PY-G01`'s
-  `~/.cache/pip`-only archive for the same dependency set.
+- **Real captured log** (`py-b02__2_measure`, build 24, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=pip-venv hit=exact
+  ```
+  — the cache does restore and save successfully (there's no key mismatch here, unlike `PY-B01`);
+  the symptom is archive size, not hit rate. (`archive_bytes` is unfortunately not reliably
+  collected yet in this repo's metrics tooling on real infra — see
+  `docs/reference/verified-facts.md` — so this page can't yet show a real before/after byte count;
+  the mechanism-level point — cache the tool's own download cache, not the installed environment —
+  still holds regardless.)
+- Metrics: `key_based.saved == true`.
 
 ## Why it happens
 `pip install`'s own download cache (`~/.cache/pip`) is already enough to make repeated installs

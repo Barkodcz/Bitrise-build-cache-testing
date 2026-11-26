@@ -33,8 +33,12 @@ The virtualenv itself (`projects/python/pip_app/.venv`) is **not** cached — on
 cache is. See `PY-B02` for what happens when the whole `.venv` is cached instead.
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run.
+- **Real captured log** (`py-g01__2_measure`, build 24, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=pip-cache hit=exact
+  ```
+- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run — confirmed `exact`
+  on the first real run.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline for the pip side of this stack. `PY-B02` points back here.

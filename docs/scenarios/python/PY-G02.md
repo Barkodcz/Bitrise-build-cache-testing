@@ -29,8 +29,12 @@ steps:
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._`
-- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run.
+- **Real captured log** (`py-g02__2_measure`, build 24, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=poetry-cache hit=exact
+  ```
+- Metrics: `key_based.restore_hit` in `["exact", "partial"]` on the measure run — confirmed `exact`
+  on the first real run.
 
 ## Why it doesn't need a fix
 N/A — this is the GOOD baseline for the Poetry side of this stack. `PY-B01` points back here.

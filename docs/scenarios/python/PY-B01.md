@@ -28,8 +28,11 @@ belongs to a *different* app in this repo entirely — so the literal key string
 ```
 
 ## What you see
-- Log evidence: `> _To be captured from a real run._` — `BITRISE_CACHE_HIT=false` on every restore,
-  forever, regardless of whether `poetry.lock` actually changed.
+- **Real captured log** (`py-b01__2_measure`, build 24, app `84c7a274-43b0-477d-9141-ea174ad0ce6e`, 2026-11-26):
+  ```
+  keybased_record: restore name=poetry-cache hit=false
+  ```
+  — confirmed `false` on the very first real run, exactly as designed.
 - Metrics: `key_based.restore_hit == "false"`.
 
 ## Why it happens
