@@ -26,6 +26,9 @@ The full spec (§13 milestones) covers 10 stacks and ~90 scenarios. This repo cu
 (catalog entry + doc stub, no bundle/workflow yet). When picking up more stacks, follow
 the same pattern used for `android`/`node`: generator project → bundles → catalog entries
 flipped to `implemented` → `make generate` → doc pages → real run → capture real log lines.
+`docs/reference/oss-projects.md` has a real open-source project already researched for every
+stack (including bigger upgrade candidates for `android`/`node`'s current tiny fixtures) — check
+there before researching a sample project from scratch.
 
 ## Conventions
 

@@ -61,6 +61,9 @@ stub, ready to be implemented the same way — see [`CLAUDE.md`](CLAUDE.md) "Sco
 - [`docs/reference/verified-facts.md`](docs/reference/verified-facts.md) — every version-sensitive
   fact (step majors, stack IDs, input names) this repo relies on, with the date and method used to
   verify it against the live steplib/CLI.
+- [`docs/reference/oss-projects.md`](docs/reference/oss-projects.md) — a real open-source project
+  researched for every stack (implemented and planned), so caching savings can be demonstrated on
+  something bigger than the current small fixture projects.
 
 ### Honesty box
 
