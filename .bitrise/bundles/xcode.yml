@@ -53,15 +53,15 @@ step_bundles:
         - content: |-
             #!/usr/bin/env bash
             set -euo pipefail
-            echo "--- [diagnostic] xcelerate log(s) in \$BITRISE_DEPLOY_DIR ---"
+            # The "Proxy blob stats"/"SetSession called" signal lives in the activation step's own
+            # xcelerate-*.log in $BITRISE_DEPLOY_DIR, NOT in $BITRISE_XCODE_RAW_RESULT_TEXT_PATH
+            # (xcodebuild's own text output via xcpretty) — confirmed on real infra, build 30.
+            xcelerate_log=""
             for f in "$BITRISE_DEPLOY_DIR"/xcelerate-*.log; do
-              [ -e "$f" ] || continue
-              echo "=== $f ==="
-              cat "$f"
+              [ -e "$f" ] && xcelerate_log="$f"
             done
-            echo "--- [diagnostic] end xcelerate log(s) ---"
             "$BITRISE_SOURCE_DIR"/tools/metrics/xcode_parse.py \
-              --raw-log "${BITRISE_XCODE_RAW_RESULT_TEXT_PATH:-}" \
+              --raw-log "$xcelerate_log" \
               --out "$SHOWCASE_METRICS_DIR/.fragments/${SHOWCASE_SCENARIO_ID}__${SHOWCASE_PHASE}/xcode.json"
 
   # ANTI-PATTERN, used by IOS-B03 only: calls /usr/bin/xcodebuild directly by absolute path
